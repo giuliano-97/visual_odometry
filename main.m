@@ -38,7 +38,8 @@ else
 end
 
 %% Bootstrap
-% TODO: need to set bootstrap_frames
+% Need to set bootstrap_frames
+% FIXME: bootstrap frames choice should depend on the dataset
 bootstrap_frames = [1,2];
 if ds == 0
     img0 = imread([kitti_path '/00/image_0/' ...
@@ -63,6 +64,7 @@ end
 
 %% Continuous operation
 range = (bootstrap_frames(2)+1):last_frame;
+prev_image = img0; % FIXME: what is the correct initialization of prev_img?
 for i = range
     fprintf('\n\nProcessing frame %d\n=====================\n', i);
     if ds == 0
@@ -79,6 +81,9 @@ for i = range
     end
     % Makes sure that plots refresh.    
     pause(0.01);
+    
+    % Process the frame
+    [~, ~] = processFrame({}, prev_img, image);
     
     prev_img = image;
 end
