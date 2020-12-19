@@ -37,6 +37,9 @@ else
     assert(false);
 end
 
+% Create cameraParameters object using the K matrix
+cameraParams = cameraParameters('IntrinsicMatrix', K);
+
 %% Bootstrap
 % Need to set bootstrap_frames
 % FIXME: bootstrap frames choice should depend on the dataset
