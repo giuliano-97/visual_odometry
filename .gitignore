@@ -1,0 +1,10 @@
+# Matlab temp files
+*.asv
+
+# Zip files
+*.zip
+
+# The datasets folders in data/
+data/kitti
+data/parking
+data/malaga-urban-dataset-extract-07
