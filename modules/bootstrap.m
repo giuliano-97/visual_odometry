@@ -30,8 +30,8 @@ matched_points1 = matched_points1(inliers_idx, :);
     matched_points0, matched_points1);
 
 % Build the camera matrices
-M0 = [eye(3); zeros(1,3)];
-M1 = [R1; t1];
+M0 = cameraMatrix(cameraParams, eye(3), zeros(1,3));
+M1 = cameraMatrix(cameraParams, R1, t1);
 
 % Triangulate the landmarks
 landmarks = triangulate(matched_points0, matched_points1, M0, M1);
@@ -41,15 +41,15 @@ landmarks = triangulate(matched_points0, matched_points1, M0, M1);
 if visualize_scene
 
     figure(1);
+    subplot(1,3,1);
    
     % Plot landmarks in 3D
-    plot3(landmarks(:,1), landmarks(:,2), zeros(size(landmarks, 1),1),'*');
+    plot3(landmarks(:,1), landmarks(:,2), landmarks(:,3),'*');
     hold on;
 
-    %% Plot cameras
     % Get orientation and position for both views
     orientation0 = eye(3); position0 = zeros(1,3);
-    orientation1 = R1; position1 = t1;
+    orientation1 = R1'; position1 = - t1 * orientation1;
     % Convert to rigid body transform object
     absPose0 = rigid3d(orientation0, position0);
     absPose1 = rigid3d(orientation1, position1);
@@ -59,7 +59,7 @@ if visualize_scene
     plotCamera('AbsolutePose', absPose1, 'Size', 1);
     text(position1(1), position1(2), position1(3),'Cam 2','fontsize',10,'color','k','FontWeight','bold');
     
-    set(gca,'CameraUpVector',[0 0 -1]);
+%     set(gca,'CameraUpVector',[0 0 -1]);
     axis equal
     grid
     
@@ -67,19 +67,18 @@ if visualize_scene
     ylabel('Y (mm)');
     zlabel('Z (mm)');
     
-    figure(2);  
     % Get matched points locations
     p1 = matched_points0.Location';
     p2 = matched_points1.Location';
     
     % Display matched points
-    subplot(1,2,1)
+    subplot(1,3,2)
     imshow(img0,[]);
     hold on
     plot(p1(1,:), p1(2,:), 'ys');
     title('Image 1')
 
-    subplot(1,2,2)
+    subplot(1,3,3)
     imshow(img1,[]);
     hold on
     plot(p2(1,:), p2(2,:), 'ys');

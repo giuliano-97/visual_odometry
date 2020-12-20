@@ -6,8 +6,8 @@ addpath('../modules');
 %% Load test data
 
 % Load image pair
-img1_file = "../data/parking/images/img_00128.png";
-img2_file = "../data/parking/images/img_00129.png";
+img1_file = "../data/parking/images/img_00003.png";
+img2_file = "../data/parking/images/img_00004.png";
 
 img1 = rgb2gray(imread(img1_file));
 img2 = rgb2gray(imread(img2_file));
