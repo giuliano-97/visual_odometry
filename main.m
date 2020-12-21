@@ -65,6 +65,17 @@ else
     assert(false);
 end
 
+% FIXME: change bootstrap function to return keypoints of img 1
+keypoints, landmarks = bootstrap(img0, img1, K);
+
+% Define markovian state
+state.landmarks = landmarks;
+state.keypoints = keypoints;
+state.candidate_keypoints = [];
+state.candidate_first_keypoints = [];
+state.candidate_first_poses = [];
+state.candidate_time_indxs = [];
+
 %% Continuous operation
 range = (bootstrap_frames(2)+1):last_frame;
 prev_image = img0; % FIXME: what is the correct initialization of prev_img?
@@ -86,7 +97,7 @@ for i = range
     pause(0.01);
     
     % Process the frame
-    [~, ~] = processFrame({}, prev_img, image);
+    [~, ~] = processFrame(state, prev_img, image);
     
     prev_img = image;
 end

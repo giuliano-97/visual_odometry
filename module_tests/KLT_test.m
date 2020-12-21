@@ -9,8 +9,11 @@ img1_gray = rgb2gray(img1);
 img2_gray = rgb2gray(img2);
 
 
-klt_tracker = KLTTracker(3, 1, [31, 31], 30);
-
+klt_tracker = KLTTracker('NumPyramidLevels',3,...
+                         'MaxBidirectionalError', 1,...
+                         'BlockSize', [31, 31],...
+                         'MaxIterations', 30);
+                     
 tic
 img1_pts = detectHarrisFeatures(img1_gray, 'MinQuality', 0.01);
 img1_marked = insertMarker(img1,img1_pts.Location, '+','Color','white');
