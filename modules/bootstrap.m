@@ -1,6 +1,15 @@
-function [matched_points0, landmarks] = bootstrap(img0, img1, cameraParams)
-
-visualize_scene = true;
+function [matched_points1, landmarks] = bootstrap(img0, img1, cameraParams,...
+    optionalArgs)
+    arguments
+        img0 
+        img1
+        cameraParams
+        optionalArgs.PlotResult logical = false
+        optionalArgs.MaxDepth double = 50;
+        optionalArgs.MinNumLandmarks uint32 = 12;
+    end
+    
+%% Extract bootstrap set of keypoints and landmarks
 
 % Detect Harris corners in both images
 points_0 = detectHarrisFeatures(img0);
@@ -17,28 +26,45 @@ idx_pairs = matchFeatures(features0, features1);
 matched_points0 = valid_points0(idx_pairs(:,1), :);
 matched_points1 = valid_points1(idx_pairs(:,2), :);
 
-% Estimate the essential matrix
-[E, inliers_idx] = estimateEssentialMatrix(...
-    matched_points0, matched_points1, cameraParams);
+% Due to the implicit randomness of this procedure which may cause no
+% landmark to be triangulated, we repeat until a number of landmarks
+% larger or equal than the minimum required is found
+ok = false;
+while ~ok
+    % Estimate the essential matrix
+    [E, inliers_idx] = estimateEssentialMatrix(...
+        matched_points0, matched_points1, cameraParams);
 
-% Set the final set of ouput keypoints for the first view
-matched_points0 = matched_points0(inliers_idx, :);
-matched_points1 = matched_points1(inliers_idx, :);
+    % Set the final set of ouput keypoints for the first view
+    matched_points0_inliers = matched_points0(inliers_idx, :);
+    matched_points1_inliers = matched_points1(inliers_idx, :);
 
-% Extract relative camera pose of the second image
-[R1, t1] = relativeCameraPose(E, cameraParams,...
-    matched_points0, matched_points1);
+   % Extract relative camera pose of the second image
+    [R1, t1] = relativeCameraPose(E, cameraParams,...
+        matched_points0_inliers, matched_points1_inliers);
 
-% Build the camera matrices
-M0 = cameraMatrix(cameraParams, eye(3), zeros(1,3));
-M1 = cameraMatrix(cameraParams, R1, t1);
+    % Build the camera matrices
+    M0 = cameraMatrix(cameraParams, eye(3), zeros(1,3));
+    M1 = cameraMatrix(cameraParams, R1, t1);
 
-% Triangulate the landmarks
-landmarks = triangulate(matched_points0, matched_points1, M0, M1);
+    % Triangulate the landmarks
+    [landmarks, ~, validIndex] = triangulate(matched_points0_inliers,...
+        matched_points1_inliers, M0, M1);
+
+    % Remove points which are also too far away
+    validIndex = validIndex & landmarks(:,3) < 5000;
+    
+    ok = nnz(validIndex) >= optionalArgs.MinNumLandmarks;
+end
+
+% Keep only valid points
+landmarks = landmarks(validIndex, :);
+matched_points0 = matched_points0(validIndex, :);
+matched_points1 = matched_points1(validIndex, :);
 
 %% (Optionally) Visualize the 3-D scene
 
-if visualize_scene
+if optionalArgs.PlotResult == true
 
     figure(1);
     subplot(1,3,1);
@@ -59,7 +85,7 @@ if visualize_scene
     plotCamera('AbsolutePose', absPose1, 'Size', 1);
     text(position1(1), position1(2), position1(3),'Cam 2','fontsize',10,'color','k','FontWeight','bold');
     
-%     set(gca,'CameraUpVector',[0 0 -1]);
+%     set(gca,'CameraUpVector',[0 0 1]);
     axis equal
     grid
     

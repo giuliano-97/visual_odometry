@@ -18,4 +18,4 @@ K = load('../data/parking/K.txt');
 cameraParams = cameraParameters('IntrinsicMatrix', K');
 
 %% Bootstrap
-[points, landmarks] = bootstrap(img1, img2, cameraParams);
+[points, landmarks] = bootstrap(img1, img2, cameraParams, 'PlotResult', true);
