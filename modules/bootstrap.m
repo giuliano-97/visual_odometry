@@ -30,8 +30,8 @@ matched_points1 = matched_points1(inliers_idx, :);
     matched_points0, matched_points1);
 
 % Build the camera matrices
-M0 = [eye(3); zeros(1,3)];
-M1 = [R1; t1];
+M0 = cameraMatrix(cameraParams, eye(3), zeros(1,3));
+M1 = cameraMatrix(cameraParams, R1, t1);
 
 % Triangulate the landmarks
 landmarks = triangulate(matched_points0, matched_points1, M0, M1);
@@ -39,29 +39,33 @@ landmarks = triangulate(matched_points0, matched_points1, M0, M1);
 %% (Optionally) Visualize the 3-D scene
 
 if visualize_scene
-    
-    % Homogenize landmarks coords
-    P = [landmarks'; ones(1, size(landmarks,1))];
 
-    figure(1),
-    subplot(1,3,1)
-
+    figure(1);
+    subplot(1,3,1);
+   
     % Plot landmarks in 3D
-    plot3(P(1,:), P(2,:), P(3,:), 'o');
+    plot3(landmarks(:,1), landmarks(:,2), landmarks(:,3),'*');
+    hold on;
 
-    % Display camera poses
-    plotCoordinateFrame(eye(3),zeros(3,1), 0.8);
-    text(-0.1,-0.1,-0.1,'Cam 1','fontsize',10,'color','k','FontWeight','bold');
-
-    R_C2_W = R1';
-    T_C2_W = t1';
-    center_cam2_W = -R_C2_W'*T_C2_W;
-    plotCoordinateFrame(R_C2_W',center_cam2_W, 0.8);
-    text(center_cam2_W(1)-0.1, center_cam2_W(2)-0.1, center_cam2_W(3)-0.1,'Cam 2','fontsize',10,'color','k','FontWeight','bold');
-
+    % Get orientation and position for both views
+    orientation0 = eye(3); position0 = zeros(1,3);
+    orientation1 = R1'; position1 = - t1 * orientation1;
+    % Convert to rigid body transform object
+    absPose0 = rigid3d(orientation0, position0);
+    absPose1 = rigid3d(orientation1, position1);
+    % Plot the cameras
+    plotCamera('AbsolutePose', absPose0, 'Size', 1);
+    text(0,0,0,'Cam 1','fontsize',10,'color','k','FontWeight','bold');
+    plotCamera('AbsolutePose', absPose1, 'Size', 1);
+    text(position1(1), position1(2), position1(3),'Cam 2','fontsize',10,'color','k','FontWeight','bold');
+    
+%     set(gca,'CameraUpVector',[0 0 -1]);
     axis equal
-    rotate3d on;
     grid
+    
+    xlabel('X (mm)');
+    ylabel('Y (mm)');
+    zlabel('Z (mm)');
     
     % Get matched points locations
     p1 = matched_points0.Location';
