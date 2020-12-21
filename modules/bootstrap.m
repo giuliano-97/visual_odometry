@@ -40,8 +40,14 @@ while ~ok
     matched_points1_inliers = matched_points1(inliers_idx, :);
 
    % Extract relative camera pose of the second image
-    [R1, t1] = relativeCameraPose(E, cameraParams,...
+    [R1, t1, validPointsFraction] = relativeCameraPose(E, cameraParams,...
         matched_points0_inliers, matched_points1_inliers);
+    
+    % Check valid point fractions and if R1 or t1 contain nans
+    if validPointsFraction < 0.9 || sum(isnan(R1(:))) > 0 || ...
+            sum(isnan(t1)) > 0
+        continue;
+    end
 
     % Build the camera matrices
     M0 = cameraMatrix(cameraParams, eye(3), zeros(1,3));
