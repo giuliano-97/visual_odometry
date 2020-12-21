@@ -5,7 +5,7 @@ function [matched_points1, landmarks] = bootstrap(img0, img1, cameraParams,...
         img1
         cameraParams
         optionalArgs.PlotResult logical = false
-        optionalArgs.MaxDepth double = 50;
+        optionalArgs.MaxDepth double = 1000;
         optionalArgs.MinNumLandmarks uint32 = 12;
     end
     
@@ -58,7 +58,7 @@ while ~ok
         matched_points1_inliers, M0, M1);
 
     % Remove points which are also too far away
-    validIndex = validIndex & landmarks(:,3) < 5000;
+    validIndex = validIndex & landmarks(:,3) < optionalArgs.MaxDepth;
     
     ok = nnz(validIndex) >= optionalArgs.MinNumLandmarks;
 end
