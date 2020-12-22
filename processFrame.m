@@ -1,5 +1,5 @@
 function [curr_state, curr_pose] = processFrame(prev_state, prev_img,...
-    curr_img, camera_matrix)
+    curr_img, cam_params)
 % processFrame: returns state and camera pose at the current frame given
 % the state and the image at the previous frame and the new image
 % @param struct prev_state: The state at the previous frame
@@ -9,12 +9,12 @@ function [curr_state, curr_pose] = processFrame(prev_state, prev_img,...
 % @return matrix curr_pose: The new pose (TODO: add description)
 
     persistent tracker
-    persistent K
+    persistent camera_matrix
     if isempty(tracker)
         tracker = KLTTracker();
     end
     if nargin > 2
-        K = camera_matrix;
+        camera_parameters = cam_params;
     end
     
     
@@ -35,14 +35,17 @@ function [curr_state, curr_pose] = processFrame(prev_state, prev_img,...
     % TODO: check if args in correct format
     [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(curr_pts(val_idx,:),...
                                                      prev_state.landmarks,...
-                                                     K);
+                                                     camera_parameters);
 
     % Disregarding badly tracked correspondences
     curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx));
     curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx));
     
     curr_pose = [R_WC;T_WC];
-    
+   
+    [curr_state.landmarks,... 
+        curr_state.keypoints,...
+        curr_pose] = updateW2D3D(prev_img, curr_img, prev_state, tracker);
     
     %% Introducing candidates if appropriate
     [candidate_tracked, val_cand, score] =tracker.track(prev_img,...
