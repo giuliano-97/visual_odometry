@@ -1,7 +1,6 @@
 close all
-addpath("../modules")
-img1_file = "../data/parking/images/img_00200.png";
-img2_file = "../data/parking/images/img_00201.png";
+img1_file = "./data/parking/images/img_00200.png";
+img2_file = "./data/parking/images/img_00201.png";
 
 img1 = imread(img1_file);
 img2 = imread(img2_file);
