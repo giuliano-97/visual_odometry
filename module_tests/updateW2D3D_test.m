@@ -1,7 +1,10 @@
 close all
-img0_file = "./data/parking/images/img_00200.png";
-img1_file = "./data/parking/images/img_00201.png";
-img2_file = "./data/parking/images/img_00202.png";
+
+[cameraParams, ~, ~] = loadGeneralData(2); %parking
+
+img0_file = "./data/parking/images/img_00250.png";
+img1_file = "./data/parking/images/img_00251.png";
+img2_file = "./data/parking/images/img_00252.png";
 
 img0 = imread(img0_file);
 img1 = imread(img1_file);
@@ -11,17 +14,30 @@ img1_gray = rgb2gray(img1);
 img2_gray = rgb2gray(img2);
 
 
-[keypoints, landmarks] = bootstrap(img0_gray,...
+klt_tracker = KLTTracker('NumPyramidLevels',3,...
+                         'MaxBidirectionalError', Inf,...
+                         'BlockSize', [31, 31],...
+                         'MaxIterations', 100);
+
+
+[keypoints, landmarks, cam2Matrix] = bootstrap(img0_gray,...
                                img1_gray,...
                                cameraParams);
 
 state.landmarks = landmarks;
-state.keypoints = keypoints;
+state.keypoints = keypoints.Location;
 state.candidate_keypoints = [];
 state.candidate_first_keypoints = [];
 state.candidate_first_poses = [];
 state.candidate_time_indxs = [];
                            
+[new_landmarks,...
+    new_keypoints,...
+    curr_pose] = updateW2D3D(img1_gray,...
+                             img2_gray,...
+                             state,...
+                             cameraParams,...
+                             klt_tracker);
 
 figure(1);
 subplot(1,3,1);

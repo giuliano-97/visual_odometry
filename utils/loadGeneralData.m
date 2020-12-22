@@ -1,11 +1,12 @@
 function [camParams, ground_truth, last_frame] = loadGeneralData(ds)
-%LOADCAMPARAMS Summary of this function goes here
-%   Detailed explanation goes here
+% loadGeneralData: loads data descriptive of the dataset
+% @param ds int 0: KITTI, 1: Malaga, 2: parking
 
-% Datasets paths
-kitti_path = 'data/kitti';
-parking_path = 'data/parking';
-malaga_path = 'data/malaga';
+    % Datasets paths
+    kitti_path = 'data/kitti';
+    parking_path = 'data/parking';
+    malaga_path = 'data/malaga';
+
     if ds == 0
         % need to set kitti_path to folder containing "00" and "poses"
         assert(exist('kitti_path', 'var') ~= 0);
