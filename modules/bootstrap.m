@@ -1,4 +1,4 @@
-function [matched_points1, landmarks, M1] = bootstrap(img0, img1, cameraParams,...
+function [matched_points1, landmarks, K] = bootstrap(img0, img1, cameraParams,...
     optionalArgs)
     arguments
         img0 
@@ -7,24 +7,32 @@ function [matched_points1, landmarks, M1] = bootstrap(img0, img1, cameraParams,.
         optionalArgs.PlotResult logical = false
         optionalArgs.MaxDepth double = 1000;
         optionalArgs.MinNumLandmarks uint32 = 12;
+        optionalArgs.FeatureMatchingType uint8 = 1;     % 0: matlabMatching 1: KLT matching
     end
     
 %% Extract bootstrap set of keypoints and landmarks
 
 % Detect Harris corners in both images
 points_0 = detectHarrisFeatures(img0);
-points_1 = detectHarrisFeatures(img1);
 
-% Extract neighborhood features
-[features0, valid_points0] = extractFeatures(img0, points_0);
-[features1, valid_points1] = extractFeatures(img1, points_1);
+if optionalArgs.FeatureMatchingType == 0
+    points_1 = detectHarrisFeatures(img1);
+    % Extract neighborhood features
+    [features0, valid_points0] = extractFeatures(img0, points_0);
+    [features1, valid_points1] = extractFeatures(img1, points_1);
 
-% Match the features
-idx_pairs = matchFeatures(features0, features1);
+    % Match the features
+    idx_pairs = matchFeatures(features0, features1);
 
-% Get matched_points in both images
-matched_points0 = valid_points0(idx_pairs(:,1), :);
-matched_points1 = valid_points1(idx_pairs(:,2), :);
+    % Get matched_points in both images
+    matched_points0 = valid_points0(idx_pairs(:,1), :).Location;
+    matched_points1 = valid_points1(idx_pairs(:,2), :).Location;
+else
+    klt_tracker = KLTTracker();
+    [points, validity, ~] = klt_tracker.track(img0, img1, points_0.Location);
+    matched_points0 = points_0(validity, :).Location;
+    matched_points1 = points(validity, :);
+end
 
 % Due to the implicit randomness of this procedure which may cause no
 % landmark to be triangulated, we repeat until a number of landmarks
@@ -35,6 +43,7 @@ while ~ok
     [E, inliers_idx] = estimateEssentialMatrix(...
         matched_points0, matched_points1, cameraParams);
 
+    
     % Set the final set of ouput keypoints for the first view
     matched_points0_inliers = matched_points0(inliers_idx, :);
     matched_points1_inliers = matched_points1(inliers_idx, :);
@@ -63,6 +72,7 @@ while ~ok
     ok = nnz(validIndex) >= optionalArgs.MinNumLandmarks;
 end
 
+K = [R1.';-t1*R1];
 % Keep only valid points
 landmarks = landmarks(validIndex, :);
 matched_points0 = matched_points0(validIndex, :);
@@ -100,8 +110,8 @@ if optionalArgs.PlotResult == true
     zlabel('Z (mm)');
     
     % Get matched points locations
-    p1 = matched_points0.Location';
-    p2 = matched_points1.Location';
+    p1 = matched_points0';
+    p2 = matched_points1';
     
     % Display matched points
     subplot(1,3,2)
