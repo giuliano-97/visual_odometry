@@ -2,8 +2,6 @@ classdef VisualOdometry
     %VISUALODOMETRY Implementation of a simple VO pipeline
     
     properties
-        % Utilities
-        tracker
         % Constant params
         cameraParams
         angularThreshold
@@ -22,8 +20,6 @@ classdef VisualOdometry
             obj.cameraParams = cameraParams;
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
-            % Initialize KLT tracker
-            obj.tracker = KLTTracker();
         end
         
         function [curr_state, pose] = processFrame(obj, prev_img, ...
@@ -39,14 +35,17 @@ classdef VisualOdometry
             
             %% Estimate camera pose from tracked points correspondences
             
-            % Track keypoints
-            [curr_pts, val_idx, ~] = obj.tracker.track(...
-                prev_img, curr_img, prev_state.keypoints);
+            % Instantiate KLT tracker and initialize
+            tracker = vision.PointTracker();
+            initialize(tracker, prev_state.keypoints, prev_img);
+            [curr_pts, val_idx, ~] = tracker(curr_img);
 
             % Estimate the pose in world coordinates
             [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(...
                 curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
-                obj.cameraParams);
+                obj.cameraParams, ...
+                'MaxNumTrials', 5000, 'Confidence', 95, ...
+                'MaxReprojectionError', 3);
 
             % Keep only inliers from PnP
             curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx), :);

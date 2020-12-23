@@ -1,3 +1,6 @@
+close all;
+clear;
+
 addpath('../modules');
 addpath('../utils');
 data_path = "../data/continuous_op_test/";
@@ -6,6 +9,11 @@ data_path = "../data/continuous_op_test/";
 K = load(strcat(data_path, 'K.txt'));
 keypoints = load(strcat(data_path, 'keypoints.txt'));
 p_W_landmarks = load(strcat(data_path, 'p_W_landmarks.txt'));
+
+% Remove the landmarks which are too close or too far away
+validIndex = p_W_landmarks(:,3) > 10 & p_W_landmarks(:,3) < 40;
+p_W_landmarks = p_W_landmarks(validIndex,:);
+keypoints = keypoints(validIndex,:);
 
 % Initialize the vo pipeline
 cameraParams = cameraParameters('IntrinsicMatrix', K');
@@ -31,7 +39,7 @@ grid on;
 
 % Test continuous operation
 prev_img = imread(strcat(data_path, sprintf('%06d.png',0)));
-for frame_idx=1:9
+for frame_idx=2:9
     curr_img = imread(strcat(data_path, sprintf('%06d.png',frame_idx)));
     
     [state, pose] = ...

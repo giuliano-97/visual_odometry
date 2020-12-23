@@ -15,7 +15,7 @@ arguments
 end
 
 % Compute the distance of all new keypoints from all the old keypoints
-D = pdist2(kp1_pos, kp0_pos, 'euclidean');
+D = pdist2(single(kp1_pos), single(kp0_pos), 'euclidean');
 
 % Find all the distances smaller than the threshold
 L = D < optionalArgs.MinDistance;
