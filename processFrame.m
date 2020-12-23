@@ -81,9 +81,11 @@ function [curr_state, curr_pose] = processFrame(prev_state, prev_img,...
     end
     
     
-    % TODO: Detect new features in current frame and add them to candidates
-    % if not already candidates
-    
-    
+    % Detect new keypoints
+    keypoints_curr = detectHarrisFeatures(curr_img);
+    % Select subset of new keypoints
+    candidateKeypoints = selectCandidateKeypoints(...
+        curr_state.keypoints.Location, keypoints_curr.Location);
+        
 end
 

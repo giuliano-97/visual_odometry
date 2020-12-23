@@ -20,7 +20,7 @@ D = pdist2(kp1_pos, kp0_pos, 'euclidean');
 % Find all the distances smaller than the threshold
 L = D < optionalArgs.MinDistance;
 
-% Compute the valid index - ith entry is true if there is already a
+% Compute the valid index - ith entry is false if there is already a
 % keypoints within an area of radius R from the ith new keypoint
 validIndex = sum(L,2) == 0;
 

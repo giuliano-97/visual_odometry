@@ -63,8 +63,7 @@ for i = range
     % Makes sure that plots refresh.    
     pause(0.01);
     
-    % Process the frame
-    [~, ~] = processFrame(state, prev_img, image);
-    
+    % Update
+    [state, pose] = processFrame(state, prev_img, image);
     prev_img = image;
 end
