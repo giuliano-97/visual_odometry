@@ -6,14 +6,18 @@ classdef KLTTracker
         tracker
     end
     methods
-        function obj = KLTTracker(varargin)
-            % varargins include:
-            %   'NumPyramidLevels'      =   3
-            %   'MaxBidirectionalError' =   Inf (default)
-            %   'BlockSize'             =   [31 31]
-            %   'MaxIterations'         =   30
-      
-            obj.tracker = vision.PointTracker(varargin{:});
+        function obj = KLTTracker(optionalArgs)
+            arguments
+                optionalArgs.NumPyramidLevels = 3;
+                optionalArgs.MaxBidirectionalError = 3;
+                optionalArgs.BlockSize = [31 31];
+                optionalArgs.MaxIterations = 50;
+            end
+            obj.tracker = vision.PointTracker(...
+                'NumPyramidLevels', optionalArgs.NumPyramidLevels,...
+                'MaxBidirectionalError', optionalArgs.MaxBidirectionalError,...
+                'BlockSize', optionalArgs.BlockSize,...
+                'MaxIterations', optionalArgs.MaxIterations);
         end
         function [points, validity, scores] = track(obj, img1, img2, img1_pts)
             % track Obtains points tracked, validity and scores
@@ -26,7 +30,7 @@ classdef KLTTracker
             % @output matrix validity   [N,1] bool representing validity of
             %                           tracked points
             % @output matrix score      [N,1] float scores for each track
-            
+            obj.tracker.release();
             initialize(obj.tracker, img1_pts, img1);
             [points, validity, scores] = obj.tracker(img2);
         end

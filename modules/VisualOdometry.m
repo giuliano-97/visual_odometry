@@ -7,6 +7,7 @@ classdef VisualOdometry
         angularThreshold
         maxTemporalRecall
         keypointsMode string
+        tracker
     end
     
     methods
@@ -25,6 +26,9 @@ classdef VisualOdometry
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
             obj.keypointsMode = optionalArgs.KeypointsMode;
+            if obj.keypointsMode == 'KLT'
+                obj.tracker = KLTTracker();
+            end
         end
         
         function [curr_state, pose] = processFrame(obj, prev_img, ...
@@ -46,9 +50,8 @@ classdef VisualOdometry
             
             if strcmp(obj.keypointsMode, 'KLT')
                 % Instantiate KLT tracker and initialize
-                tracker = vision.PointTracker();
-                initialize(tracker, prev_state.keypoints, prev_img);
-                [curr_pts, val_idx, ~] = tracker(curr_img);
+                [curr_pts, val_idx, ~] = obj.tracker.track(prev_img,...
+                    curr_img, prev_state.keypoints);
                 % Estimate the pose in world coordinates
                 [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(...
                     curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
