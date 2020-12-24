@@ -1,9 +1,7 @@
 close all;
 clear;
 
-addpath('../modules');
-addpath('../utils');
-data_path = "../data/continuous_op_test/";
+data_path = "./data/continuous_op_test/";
 
 % Load data
 K = load(strcat(data_path, 'K.txt'));
