@@ -35,17 +35,25 @@ grid on;
 prev_img = imread(strcat(data_path, sprintf('%06d.png',0)));
 % Plot initial set of keypoints
 subplot(2,1,2);
-imshow(insertMarker(prev_img, keypoints));
-for frame_idx=2:9
+imshow(insertMarker(prev_img, keypoints, 'o', 'Color', 'red'));
+pause(5);
+for frame_idx=2:8
     curr_img = imread(strcat(data_path, sprintf('%06d.png',frame_idx)));
     
     [state, pose] = ...
         vo.processFrame(prev_img, curr_img, state);
     
+    % Plot camera pose
     subplot(2,1,1);
     plotCameraPose(pose, sprintf('Camera %d', frame_idx));
     
-    poses(:,:,frame_idx+1) = pose;
+    pause(2);
     
+    % Update keypoints view
+    subplot(2,1,2);
+    imshow(insertMarker(curr_img, state.keypoints, 'o', 'Color', 'red'));
+    
+    
+    poses(:,:,frame_idx+1) = pose;
     prev_img = curr_img;
 end
