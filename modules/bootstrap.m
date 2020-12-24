@@ -1,4 +1,4 @@
-function [matched_points1, landmarks, T] = bootstrap(img0, img1, cameraParams,...
+function [keypoints, landmarks, pose] = bootstrap(img0, img1, cameraParams,...
     optionalArgs)
     arguments
         img0 
@@ -59,8 +59,10 @@ while ~ok
     end
 
     % Build the camera matrices
-    M0 = cameraMatrix(cameraParams, eye(3), zeros(1,3));
-    M1 = cameraMatrix(cameraParams, R1, t1);
+    [orientation0, position0] = cameraPoseToExtrinsics(eye(3), zeros(1,3));
+    [orientation1, position1] = cameraPoseToExtrinsics(R1, t1);
+    M0 = cameraMatrix(cameraParams, orientation0, position0);
+    M1 = cameraMatrix(cameraParams, orientation1, position1);
 
     % Triangulate the landmarks
     [landmarks, ~, validIndex] = triangulate(matched_points0_inliers,...
@@ -72,11 +74,10 @@ while ~ok
     ok = nnz(validIndex) >= optionalArgs.MinNumLandmarks;
 end
 
-T = [R1.';-t1*R1.'];
+pose = [R1; t1];
 % Keep only valid points
 landmarks = landmarks(validIndex, :);
-matched_points0 = matched_points0(validIndex, :);
-matched_points1 = matched_points1(validIndex, :);
+keypoints = matched_points1(validIndex, :);
 
 %% (Optionally) Visualize the 3-D scene
 
@@ -88,20 +89,18 @@ if optionalArgs.PlotResult == true
     % Plot landmarks in 3D
     plot3(landmarks(:,1), landmarks(:,2), landmarks(:,3),'*');
     hold on;
-
-    % Get orientation and position for both views
-    orientation0 = eye(3); position0 = zeros(1,3);
-    orientation1 = R1'; position1 = - t1 * orientation1;
+    
     % Convert to rigid body transform object
-    absPose0 = rigid3d(orientation0, position0);
-    absPose1 = rigid3d(orientation1, position1);
+    absPose0 = rigid3d(eye(3), zeros(1,3));
+    absPose1 = rigid3d(R1, t1);
     % Plot the cameras
     plotCamera('AbsolutePose', absPose0, 'Size', 1);
     text(0,0,0,'Cam 1','fontsize',10,'color','k','FontWeight','bold');
     plotCamera('AbsolutePose', absPose1, 'Size', 1);
-    text(position1(1), position1(2), position1(3),'Cam 2','fontsize',10,'color','k','FontWeight','bold');
+    text(absPose1.Translation(1), absPose1.Translation(2), absPose1.Translation(3), ...
+        'Cam 2','fontsize',10,'color','k','FontWeight','bold');
     
-%     set(gca,'CameraUpVector',[0 0 1]);
+    set(gca,'CameraUpVector',[0 1 0]);
     axis equal
     grid
     
@@ -110,8 +109,8 @@ if optionalArgs.PlotResult == true
     zlabel('Z (mm)');
     
     % Get matched points locations
-    p1 = matched_points0';
-    p2 = matched_points1';
+    p1 = matched_points0(validIndex, :)';
+    p2 = matched_points1(validIndex, :)';
     
     % Display matched points
     subplot(1,3,2)
