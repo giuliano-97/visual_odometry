@@ -1,4 +1,4 @@
-function [matched_points1, landmarks, K] = bootstrap(img0, img1, cameraParams,...
+function [matched_points1, landmarks, T] = bootstrap(img0, img1, cameraParams,...
     optionalArgs)
     arguments
         img0 
@@ -13,7 +13,7 @@ function [matched_points1, landmarks, K] = bootstrap(img0, img1, cameraParams,..
 %% Extract bootstrap set of keypoints and landmarks
 
 % Detect Harris corners in both images
-points_0 = detectHarrisFeatures(img0);
+points_0 = detectHarrisFeatures(img0, 'FilterSize', 3);
 
 if optionalArgs.FeatureMatchingType == 0
     points_1 = detectHarrisFeatures(img1);
@@ -72,7 +72,7 @@ while ~ok
     ok = nnz(validIndex) >= optionalArgs.MinNumLandmarks;
 end
 
-K = [R1.';-t1*R1];
+T = [R1.';-t1*R1.'];
 % Keep only valid points
 landmarks = landmarks(validIndex, :);
 matched_points0 = matched_points0(validIndex, :);

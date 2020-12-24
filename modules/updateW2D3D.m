@@ -17,9 +17,9 @@ function [landmarks, keypoints, curr_pose] = updateW2D3D(prev_img, curr_img, pre
     [R_WC, T_WC, inl_idx] = estimateWorldCameraPose(curr_pts(val_idx,:),...
                                                      prev_state.landmarks(val_idx,:),...
                                                      camera_parameters,...
-                                                     'MaxReprojectionError',10,...
+                                                     'MaxReprojectionError',1,...
                                                      'Confidence', 99,...
-                                                     'MaxNumTrials', 1000);
+                                                     'MaxNumTrials', 10000);
     
     display('Previous Keypoints: '+string(length(val_idx)));
     display('Tracked Keypoints: '+string(sum(val_idx)));
@@ -29,7 +29,7 @@ function [landmarks, keypoints, curr_pose] = updateW2D3D(prev_img, curr_img, pre
     landmarks = prev_state.landmarks(val_idx(inl_idx),:);
     keypoints = curr_pts(val_idx(inl_idx),:);
     
-    curr_pose = [R_WC';-T_WC*R_WC];
+    curr_pose = [R_WC;T_WC];
     
     prev_img_marked = insertMarker(prev_img_marked, prev_state.keypoints(val_idx(inl_idx), :), 'x', 'Color', 'white');
     curr_img_marked = insertMarker(curr_img_marked, keypoints, 'x', 'Color', 'white');

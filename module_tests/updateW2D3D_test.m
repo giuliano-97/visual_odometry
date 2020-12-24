@@ -3,9 +3,9 @@ clear
 
 [cameraParams, ~, ~] = loadGeneralData(2); %parking
 
-img0_file = "./data/parking/images/img_00200.png";
-img1_file = "./data/parking/images/img_00202.png";
-img2_file = "./data/parking/images/img_00203.png";
+img0_file = "./data/parking/images/img_00000.png";
+img1_file = "./data/parking/images/img_00003.png";
+img2_file = "./data/parking/images/img_00004.png";
 
 img0 = imread(img0_file);
 img1 = imread(img1_file);
@@ -21,7 +21,7 @@ klt_tracker = KLTTracker('NumPyramidLevels',4,...
                          'MaxIterations', 1000);
 
 
-[keypoints, landmarks, cam2Matrix] = bootstrap(img0_gray,...
+[keypoints, landmarks, prev_pose] = bootstrap(img0_gray,...
                                img1_gray,...
                                cameraParams);
 
@@ -42,7 +42,7 @@ state.candidate_time_indxs = [];
 
                          
 T0 = [eye(3);[0,0,0]];
-T1 = cam2Matrix;
+T1 = prev_pose;
 T2 = curr_pose;
 
                          
