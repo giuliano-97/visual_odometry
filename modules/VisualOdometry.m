@@ -26,12 +26,10 @@ classdef VisualOdometry
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
             obj.keypointsMode = optionalArgs.KeypointsMode;
-            if obj.keypointsMode == 'KLT'
-                obj.tracker = KLTTracker();
-            end
+            obj.tracker = KLTTracker();
         end
         
-        function [curr_state, pose] = processFrame(obj, prev_img, ...
+        function [curr_state, curr_pose] = processFrame(obj, prev_img, ...
                 curr_img, prev_state)
             % PROCESSFRAME Summary of this method goes here
             %   TODO: add detailed explanation
@@ -87,17 +85,26 @@ classdef VisualOdometry
             end
 
             % Update pose
-            pose = [R_WC;T_WC];
+            curr_pose = [R_WC;T_WC];
             
             %% Triangulate new landmarks
-            
+            [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
+                prev_state, curr_img, curr_pose, obj.cameraParams, obj.tracker);
             %% Select new keypoints to track
             % Select subset of new keypoints
             validIndex = selectCandidateKeypoints(...
-                curr_state.keypoints, curr_keypoints.Location);
-            candidateKeypoints = curr_keypoints.Location(validIndex, :);
+                tracked_keypoints, curr_keypoints.Location);
+            new_candidate_keypoints = curr_keypoints.Location(validIndex, :);
             
-            % TODO: append candidates to keypoints to track
+            % Appending candidates to keypoints to track
+            curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
+                new_candidate_keypoints];
+            curr_state.candidate_first_keypoints = [curr_state.candidate_first_keypoints;...
+                new_candidate_keypoints];
+            curr_state.candidate_first_poses = [curr_state.candidate_first_poses,...
+                repmat({curr_pose},1,size(new_candidate_keypoints,1))];
+            curr_state.candidate_time_indxs = [curr_state.candidate_time_indxs,...
+                zeros(1, size(new_candidate_keypoints,1))];
         end
     end
 end

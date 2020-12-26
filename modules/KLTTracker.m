@@ -30,9 +30,14 @@ classdef KLTTracker
             % @output matrix validity   [N,1] bool representing validity of
             %                           tracked points
             % @output matrix score      [N,1] float scores for each track
-            obj.tracker.release();
-            initialize(obj.tracker, img1_pts, img1);
-            [points, validity, scores] = obj.tracker(img2);
+            points = double.empty(0,2);
+            validity = [];
+            scores = double.empty(0,1);
+            if size(img1_pts,1)>0
+                obj.tracker.release();
+                initialize(obj.tracker, img1_pts, img1);
+                [points, validity, scores] = obj.tracker(img2);
+            end
         end
     end
 end

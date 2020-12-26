@@ -20,7 +20,7 @@ if test_bootstrap
         img0 = rgb2gray(img0);
         img1 = rgb2gray(img1);
     end
-    [keypoints, landmarks] = bootstrap(img0, img1, cameraParams, ...
+    [keypoints, landmarks, pose] = bootstrap(img0, img1, cameraParams, ...
         'PlotResult', true, 'MinNumLandmarks', 300,...
         'MaxDepth', 300, ...
         'FeatureMatchingMode', 'KLT', ...
@@ -46,6 +46,12 @@ vo = VisualOdometry(cameraParams, 'KeypointsMode', 'KLT');
 % Initialize the state struct
 state.landmarks = landmarks;
 state.keypoints = keypoints;
+state.candidate_keypoints = keypoints;
+state.candidate_first_keypoints = keypoints;
+state.candidate_first_poses = [{}];
+state.candidate_first_poses = [state.candidate_first_poses, repmat({pose},1,size(keypoints,1))];
+state.candidate_time_indxs = repmat(-50, 1,size(keypoints,1));
+
 
 % Initialize camera poses array
 pose = [eye(3); zeros(1,3)];
@@ -93,4 +99,5 @@ for i=0:7
     
     poses(:,:,frame_idx+1) = pose;
     prev_img = curr_img;
+    state
 end
