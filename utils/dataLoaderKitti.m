@@ -37,6 +37,14 @@ classdef dataLoaderKitti < handle
             end
         end
         
+        % Retrieves a specific frame
+        function [img, ground_truth_pose] = retrieveFrame(obj, index)
+            % Error if invalid index
+            assert(index <= obj.last_frame);
+            img = imread(sprintf(obj.img_file_format,index));
+            ground_truth_pose = obj.ground_truth_data(obj.index+1, :);            
+        end
+        
         % Load camera parameters
         function [camParams, ground_truth, last_frame] = loadGeneralData(obj)
             ground_truth = load(strcat(obj.dataset_path, '/poses/00.txt'));
