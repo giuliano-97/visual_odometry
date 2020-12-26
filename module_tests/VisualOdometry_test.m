@@ -37,21 +37,14 @@ else
     keypoints = [keypoints(:,2), keypoints(:,1)];
     landmarks = load(strcat(data_path, 'p_W_landmarks.txt'));
     prev_img = imread(sprintf(image_path_template,0));
+    pose = [eye(3); zeros(1,3)];
     next_idx = 1;
 end
-
 % Initialize the vo pipeline
 vo = VisualOdometry(cameraParams, 'KeypointsMode', 'KLT');
 
 % Initialize the state struct
-state.landmarks = landmarks;
-state.keypoints = keypoints;
-state.candidate_keypoints = keypoints;
-state.candidate_first_keypoints = keypoints;
-state.candidate_first_poses = [{}];
-state.candidate_first_poses = [state.candidate_first_poses, repmat({pose},1,size(keypoints,1))];
-state.candidate_time_indxs = repmat(-50, 1,size(keypoints,1));
-
+state = initializeState(landmarks, keypoints, pose, 50);
 
 % Initialize camera poses array
 pose = [eye(3); zeros(1,3)];
@@ -60,8 +53,8 @@ poses(:,:,1) = pose;
 
 % Plot the 3D landmarks and the first camera
 figure(1);
-subplot(2,2,1);
-plot3(landmarks(:,1), landmarks(:,2), landmarks(:,3), '*');
+subplot(2,2,[1,2]);
+plot3(landmarks(:,1), landmarks(:,2), landmarks(:,3), 'o');
 hold on;
 plotCameraPose(pose, 'Camera 0');
 set(gca,'CameraUpVector',[0 1 0]);
@@ -70,6 +63,8 @@ ylabel('Y');
 zlabel('Z');
 axis equal;
 grid on;
+
+pause(3);
 
 %% Test continuous operation
 % Plot initial set of keypoints
@@ -86,11 +81,15 @@ for i=0:7
     [state, pose] = ...
         vo.processFrame(prev_img, curr_img, state);
     
+    subplot(2,2,[1,2]);
+    plot3(state.landmarks(:,1), state.landmarks(:,2), state.landmarks(:,3), '*');
+    
     % Plot camera pose
-    subplot(2,2,1);
+    subplot(2,2,[1,2]);
     plotCameraPose(pose, sprintf('Camera %d', frame_idx));
     
-    pause(0.01);
+    pause(0.01);    hold on;
+
     
     % Update keypoints view
     subplot(2,2,[3,4]);

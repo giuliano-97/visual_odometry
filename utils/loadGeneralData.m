@@ -5,7 +5,7 @@ function [camParams, ground_truth, last_frame] = loadGeneralData(ds)
     % Datasets paths
     kitti_path = 'data/kitti';
     parking_path = 'data/parking';
-    malaga_path = 'data/malaga';
+    malaga_path = 'data/malaga-urban-dataset-extract-07';
 
     if ds == 0
         % need to set kitti_path to folder containing "00" and "poses"
@@ -26,6 +26,7 @@ function [camParams, ground_truth, last_frame] = loadGeneralData(ds)
         K = [621.18428 0 404.0076
             0 621.18428 309.05989
             0 0 1];
+        ground_truth = [];
     elseif ds == 2
         % Path containing images, depths and all...
         assert(exist('parking_path', 'var') ~= 0);
