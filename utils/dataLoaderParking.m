@@ -52,8 +52,13 @@ classdef dataLoaderParking < handle
         end
         
         % Resets object to the start point
-        function [] = reset(obj)
-            obj.index = 0;
+        function [] = reset(obj, index)
+            arguments
+                obj
+                index int32 = 0;
+            end
+            assert(index <= obj.last_frame, 'Index out of range');
+            obj.index = index;
             obj.finished = false;
         end
     end
