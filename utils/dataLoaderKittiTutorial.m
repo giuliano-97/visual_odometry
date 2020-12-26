@@ -43,7 +43,7 @@ classdef dataLoaderKittiTutorial < handle
             % Error if invalid index
             assert(index <= obj.last_frame);
             img = imread(sprintf(obj.img_file_format,index));
-            ground_truth_pose = obj.ground_truth_data(obj.index+1, :);            
+            ground_truth_pose = [];            
         end
         
         % Load camera parameters gt_position and last_frame index
@@ -51,6 +51,7 @@ classdef dataLoaderKittiTutorial < handle
             K = load(strcat(obj.dataset_path, '/K.txt'));
             camParams = cameraParameters('IntrinsicMatrix', K.');
             keypoints = load(strcat(obj.dataset_path, '/keypoints.txt'));
+            keypoints = [keypoints(:,2), keypoints(:,1)];
             landmarks = load(strcat(obj.dataset_path, '/p_W_landmarks.txt'));
             ground_truth = [];
             last_frame = 9;

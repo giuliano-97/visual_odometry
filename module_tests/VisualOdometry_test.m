@@ -6,17 +6,31 @@ rng(1023);
 
 % Load data
 test_bootstrap = true;
+
+dataset_type = 1; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+
+% Pick the correspoinding data loader
+if dataset_type ==0
+    data_loader = dataLoaderKitti('./data/kitti');
+elseif dataset_type == 1
+    data_loader = dataLoaderMalaga('./data/malaga-urban-dataset-extract-07');
+elseif dataset_type == 2
+    data_loader = dataLoaderParking('./data/parking');
+elseif dataset_type == 3
+    data_loader = dataLoaderKittiTutorial('./data/continuous_op_test');
+else
+    assert(false, "Invalid dataset type choose: 0, 1,2,3");
+end
+
+cameraParams = data_loader.camParams;
+
 if test_bootstrap
-    [cameraParams, ~, ~] = loadGeneralData(0); % loadGeneralData(2);
-    data_path = "data/kitti/00/image_0/"; %"data/parking/";
-    image_path_template = strcat(data_path, "%06d.png"); % strcat(data_path, "images/img_%05d.png");
     % Load bootstrap images
     bootstrap_frames = [0,1];
-    img0 = imread(sprintf(image_path_template, ...
-        bootstrap_frames(1)));
-    img1 = imread(sprintf(image_path_template, ...
-        bootstrap_frames(2)));
-    if ndims(img0) == 3
+    img0 = data_loader.retrieveFrame(bootstrap_frames(1));
+    img1 = data_loader.retrieveFrame(bootstrap_frames(2));
+    
+    if ndims(img0) > 2
         img0 = rgb2gray(img0);
         img1 = rgb2gray(img1);
     end
@@ -25,20 +39,16 @@ if test_bootstrap
         'MaxDepth', 300, ...
         'FeatureMatchingMode', 'KLT', ...
         'FilterSize', 3, 'MinQuality', 0.001);
-    prev_img = imread(sprintf(image_path_template, ...
-        bootstrap_frames(2)));
-    next_idx = bootstrap_frames(2) + 1;
+    prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
+    data_loader.reset(bootstrap_frames(2)+1);
 else
-    data_path = "./data/continuous_op_test/";
-    image_path_template = strcat(data_path, "%06d.png");
-    K = load(strcat(data_path, 'K.txt'));
-    cameraParams = cameraParameters('IntrinsicMatrix', K');
-    keypoints = load(strcat(data_path, 'keypoints.txt'));
-    keypoints = [keypoints(:,2), keypoints(:,1)];
-    landmarks = load(strcat(data_path, 'p_W_landmarks.txt'));
-    prev_img = imread(sprintf(image_path_template,0));
+    assert(dataset_type==3,...
+        'Test without bootstrap only available if using Kitti tutorial dataset');
+    keypoints = data_loader.initial_keypoints;
+    landmarks = data_loader.initial_landmarks;
+    prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     pose = [eye(3); zeros(1,3)];
-    next_idx = 1;
+    data_loader.reset(bootstrap_frames(2)+1);
 end
 % Initialize the vo pipeline
 vo = VisualOdometry(cameraParams, 'KeypointsMode', 'KLT');
@@ -71,10 +81,18 @@ pause(3);
 subplot(2,2,[3,4]);
 imshow(insertMarker(prev_img, keypoints, 'o', 'Color', 'red'));
 pause(0.5);
-for i=0:7
-    frame_idx = next_idx + i;
-    curr_img = imread(sprintf(image_path_template,frame_idx));
-    if ndims(curr_img) == 3
+% Number of frames to play VO for
+num_frames = 50;
+assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
+    'Not enougth frames');
+
+if ndims(prev_img) > 2
+    prev_img = rgb2gray(prev_img);
+end
+
+for i = data_loader.index : data_loader.index+num_frames-1
+    curr_img = data_loader.next();
+    if ndims(curr_img) > 2
         curr_img = rgb2gray(curr_img);
     end
     
@@ -86,7 +104,7 @@ for i=0:7
     
     % Plot camera pose
     subplot(2,2,[1,2]);
-    plotCameraPose(pose, sprintf('Camera %d', frame_idx));
+    plotCameraPose(pose, sprintf('Camera %d', i));
     
     pause(0.01);    hold on;
 
@@ -96,7 +114,7 @@ for i=0:7
     imshow(insertMarker(curr_img, state.keypoints, 'o', 'Color', 'red'));
     
     
-    poses(:,:,frame_idx+1) = pose;
+    poses(:,:,i+1) = pose;
     prev_img = curr_img;
     state
 end
