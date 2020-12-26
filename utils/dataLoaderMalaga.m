@@ -1,24 +1,24 @@
-classdef dataLoaderParking < handle
-    %DATALOADERPARKING data loader for parking dataset
+classdef dataLoaderMalaga < handle
+    %DATALOADERMALAGA data loader for malaga dataset
     properties
         camParams
         last_frame
         index
         dataset_path
-        img_file_format
+        left_images_dirs
         ground_truth_data
         finished
     end
     
     methods
-        function obj = dataLoaderParking(path)
+        function obj = dataLoaderMalaga(path)
             %Parking dataset loader
             obj.dataset_path = path;
             [obj.camParams,...
                 obj.ground_truth_data,...
+                obj.left_images_dirs,...
                 obj.last_frame] = obj.loadGeneralData();
             obj.index = 0;
-            obj.img_file_format = strcat(obj.dataset_path,'/images/img_%05d.png');
             obj.finished = false;
         end
         
@@ -26,8 +26,9 @@ classdef dataLoaderParking < handle
         function [next_img, gt_pose] = next(obj)
             % Error if already loaded all files
             assert(obj.index <= obj.last_frame);
-            next_img = imread(sprintf(obj.img_file_format,obj.index));
-            gt_pose = obj.ground_truth_data(obj.index+1, :);
+            next_img = imread(strcat(obj.left_images_dirs(obj.index+1).folder,...
+                "/",obj.left_images_dirs(obj.index+1).name));
+            gt_pose = [];
             obj.index = obj.index + 1;
             if obj.index > obj.last_frame
                 obj.finished = true;
@@ -38,17 +39,22 @@ classdef dataLoaderParking < handle
         function [img, ground_truth_pose] = retrieveFrame(obj, index)
             % Error if invalid index
             assert(index <= obj.last_frame);
-            img = imread(sprintf(obj.img_file_format,index));
-            ground_truth_pose = obj.ground_truth_data(obj.index+1, :);            
+            img = imread(strcat(obj.left_images_dirs(index+1).folder,...
+                "/",obj.left_images_dirs(index+1).name));
+            ground_truth_pose = [];
         end
         
         % Load camera parameters gt_position and last_frame index
-        function [camParams, ground_truth, last_frame] = loadGeneralData(obj)
-            K = load(strcat(obj.dataset_path, '/K.txt'));
+        function [camParams, ground_truth, left_images_dirs, last_frame] = loadGeneralData(obj)
+            K = [621.18428 0 404.0076
+                0 621.18428 309.05989
+                0 0 1];
             camParams = cameraParameters('IntrinsicMatrix', K.');
-            ground_truth = load(strcat(obj.dataset_path, '/poses.txt'));
-            ground_truth = ground_truth(:, [end-8 end]);
-            last_frame = 598;
+            ground_truth = [];
+            images = dir(strcat(obj.dataset_path,...
+                '/malaga-urban-dataset-extract-07_rectified_800x600_Images'));
+            left_images_dirs = images(3:2:end);
+            last_frame = length(left_images_dirs) - 1;
         end
         
         % Resets object to the start point
