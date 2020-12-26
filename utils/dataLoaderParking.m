@@ -1,5 +1,5 @@
-classdef dataLoaderKitti < handle
-    %DATALOADERKITTI data loader for kitti dataset
+classdef dataLoaderParking < handle
+    %DATALOADERPARKING data loader for kitti dataset
     properties
         camParams
         last_frame
@@ -11,14 +11,14 @@ classdef dataLoaderKitti < handle
     end
     
     methods
-        function obj = dataLoaderKitti(path)
-            %KITTI dataset loader
+        function obj = dataLoaderParking(path)
+            %Parking dataset loader
             obj.dataset_path = path;
             [obj.camParams,...
                 obj.ground_truth_data,...
                 obj.last_frame] = obj.loadGeneralData();
             obj.index = 0;
-            obj.img_file_format = strcat(obj.dataset_path,'/00/image_0/%06d.png');
+            obj.img_file_format = strcat(obj.dataset_path,'/images/img_%05d.png');
             obj.finished = false;
         end
         
@@ -42,15 +42,13 @@ classdef dataLoaderKitti < handle
             ground_truth_pose = obj.ground_truth_data(obj.index+1, :);            
         end
         
-        % Load camera parameters
+        % Load camera parameters gt_position and last_frame index
         function [camParams, ground_truth, last_frame] = loadGeneralData(obj)
-            ground_truth = load(strcat(obj.dataset_path, '/poses/00.txt'));
+            K = load(strcat(obj.dataset_path, '/K.txt'));
+            camParams = cameraParameters('IntrinsicMatrix', K.');
+            ground_truth = load(strcat(obj.dataset_path, '/poses.txt'));
             ground_truth = ground_truth(:, [end-8 end]);
-            last_frame = 4540;
-            K = [7.188560000000e+02 0 6.071928000000e+02
-                0 7.188560000000e+02 1.852157000000e+02
-                0 0 1];
-            camParams = cameraParameters('IntrinsicMatrix',K.');
+            last_frame = 598;
         end
         
         % Resets object to the start point
