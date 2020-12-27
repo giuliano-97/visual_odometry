@@ -6,6 +6,7 @@ classdef VisualOdometry
         cameraParams
         angularThreshold
         maxTemporalRecall
+        maxNumLandmarks
         tracker
     end
     
@@ -17,10 +18,12 @@ classdef VisualOdometry
                 cameraParams
                 optionalArgs.angularThreshold double = 5
                 optionalArgs.maxTemporalRecall uint32 = 20
+                optionalArgs.maxNumLandmarks uint32 = 500
             end
             obj.cameraParams = cameraParams;
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
+            obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
             obj.tracker = KLTTracker();
         end
         
@@ -56,20 +59,26 @@ classdef VisualOdometry
             %% Triangulate new landmarks
             [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
                 prev_state, curr_img, curr_pose, obj.cameraParams, obj.tracker);
-            %% Select new keypoints to track
-            new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
-                tracked_keypoints, 'MaxNewKeypoints', 50, ...
-                'MinQuality', 0.01, 'MinDistance', 20);
             
-            % Appending candidates to keypoints to track
-            curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
-                new_candidate_keypoints];
-            curr_state.candidate_first_keypoints = [curr_state.candidate_first_keypoints;...
-                new_candidate_keypoints];
-            curr_state.candidate_first_poses = [curr_state.candidate_first_poses,...
-                repmat({curr_pose},1,size(new_candidate_keypoints,1))];
-            curr_state.candidate_time_indxs = [curr_state.candidate_time_indxs,...
-                zeros(1, size(new_candidate_keypoints,1))];
+            %% Select new keypoints to track
+            % Only select new keypoints if the number of landmarks which
+            % are being tracked is smaller than the allowed maximum
+            if length(curr_state.keypoints) < obj.maxNumLandmarks
+                new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
+                    [curr_state.keypoints; curr_state.candidate_keypoints],...
+                    'MaxNewKeypoints', 50, 'MinQuality', 0.01, ...
+                    'MinDistance', 30);
+
+                % Appending candidates to keypoints to track
+                curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
+                    new_candidate_keypoints];
+                curr_state.candidate_first_keypoints = [curr_state.candidate_first_keypoints;...
+                    new_candidate_keypoints];
+                curr_state.candidate_first_poses = [curr_state.candidate_first_poses,...
+                    repmat({curr_pose},1,size(new_candidate_keypoints,1))];
+                curr_state.candidate_time_indxs = [curr_state.candidate_time_indxs,...
+                    zeros(1, size(new_candidate_keypoints,1))];
+            end
         end
     end
 end
