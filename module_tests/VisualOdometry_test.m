@@ -35,10 +35,10 @@ if test_bootstrap
         img1 = rgb2gray(img1);
     end
     [keypoints, landmarks, pose] = bootstrap(img0, img1, cameraParams, ...
-        'PlotResult', true, 'MinNumLandmarks', 300,...
-        'MaxDepth', 300, ...
+        'MinNumLandmarks', 200,...
+        'MaxDepth', 200, ...
         'FeatureMatchingMode', 'KLT', ...
-        'FilterSize', 3, 'MinQuality', 0.001);
+        'FilterSize', 3, 'MinQuality', 0.01);
     prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     data_loader.reset(bootstrap_frames(2)+1);
 else
@@ -50,6 +50,12 @@ else
     pose = [eye(3); zeros(1,3)];
     data_loader.reset(bootstrap_frames(2)+1);
 end
+
+% Number of frames to play VO for
+num_frames = 50;
+assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
+    'Not enough frames');
+
 % Initialize the vo pipeline
 vo = VisualOdometry(cameraParams);
 
@@ -63,28 +69,28 @@ poses(:,:,1) = pose;
 
 % Plot the 3D landmarks and the first camera
 figure(1);
-subplot(2,2,[1,2]);
-plot3(landmarks(:,1), landmarks(:,2), landmarks(:,3), 'o');
-hold on;
+subplot(2,2,1);
+pcshow(landmarks); hold on;
 plotCameraPose(pose, 'Camera 0');
 set(gca,'CameraUpVector',[0 1 0]);
-xlabel('X');
-ylabel('Y');
-zlabel('Z');
+xlabel('X'); ylabel('Y'); zlabel('Z');
 axis equal;
-grid on;
+grid on; 
 
-pause(3);
+% Plot the trajectory (top view);
+subplot(2,2,2);
+positions_x = zeros(1,num_frames);
+positions_z = zeros(1,num_frames);
+plot(0,0, 'LineWidth',1, 'MarkerSize',10, 'MarkerEdgeColor','b');
+xlabel('X'); ylabel('Z');
+xlim([-5,5]); ylim([-5,5]);
+grid on;
 
 %% Test continuous operation
 % Plot initial set of keypoints
 subplot(2,2,[3,4]);
 imshow(insertMarker(prev_img, keypoints, 'o', 'Color', 'red'));
-pause(0.5);
-% Number of frames to play VO for
-num_frames = 50;
-assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
-    'Not enougth frames');
+pause(2.5);
 
 if ndims(prev_img) == 3
     prev_img = rgb2gray(prev_img);
@@ -99,14 +105,27 @@ for i = data_loader.index : data_loader.index+num_frames-1
     [state, pose] = ...
         vo.processFrame(prev_img, curr_img, state);
     
-    subplot(2,2,[1,2]);
-    plot3(state.landmarks(:,1), state.landmarks(:,2), state.landmarks(:,3), '*');
+    position = pose(4,:);
     
-    % Plot camera pose
-    subplot(2,2,[1,2]);
-    plotCameraPose(pose, sprintf('Camera %d', i));
+    subplot(2,2,1);
+    hold off;
+    ax = pcshow(state.landmarks);  
+    ax.CameraUpVector = [0 1 0];
+    % Point cloud plot follows the camera
+    ax.ZLim = [position(3)-5,position(3)+40];
+    ax.XLim = [-20, 10]; hold on;
+    plotCameraPose(pose, "");
     
-    pause(0.01); hold on;
+    % Plot the trajectory so far
+    subplot(2,2,2);
+    positions_x(i) = position(1);
+    positions_z(i) = position(3);
+    plot(positions_x(1:i), positions_z(1:i),...
+        'LineWidth',1, 'MarkerSize',10, 'MarkerEdgeColor','b');
+    xlim([position(1)-10,position(1)+10]); 
+    ylim([position(3)-20,position(3)+20]);
+    grid on;
+    pause(0.01);
 
     % Update keypoints view
     subplot(2,2,[3,4]);
