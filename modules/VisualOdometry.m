@@ -6,7 +6,6 @@ classdef VisualOdometry
         cameraParams
         angularThreshold
         maxTemporalRecall
-        keypointsMode string
         tracker
     end
     
@@ -18,14 +17,10 @@ classdef VisualOdometry
                 cameraParams
                 optionalArgs.angularThreshold double = 5
                 optionalArgs.maxTemporalRecall uint32 = 20
-                optionalArgs.KeypointsMode string ...
-                    {mustBeMember(optionalArgs.KeypointsMode,...
-                    {'KLT', 'Matched'})} = 'KLT'
             end
             obj.cameraParams = cameraParams;
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
-            obj.keypointsMode = optionalArgs.KeypointsMode;
             obj.tracker = KLTTracker();
         end
         
@@ -46,44 +41,19 @@ classdef VisualOdometry
             
             %% Estimate camera pose from 2D-3D point correspondences
             
-            if strcmp(obj.keypointsMode, 'KLT')
-                % Instantiate KLT tracker and initialize
-                [curr_pts, val_idx, ~] = obj.tracker.track(prev_img,...
-                    curr_img, prev_state.keypoints);
-                % Estimate the pose in world coordinates
-                [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(...
-                    curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
-                    obj.cameraParams, ...
-                    'MaxNumTrials', 5000, 'Confidence', 95, ...
-                    'MaxReprojectionError', 3);
-                % Keep only inliers from PnP
-                curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx), :);
-                curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx), :);
-                
-            elseif strcmp(obj.keypointsMode, 'Matched')
-                % Define cornerPoins struct with the previous keypoints
-                prev_keypoints = cornerPoints(prev_state.keypoints);
-                % Extract FREAK descriptors - default for corner points
-                [prev_descriptors, ~] = extractFeatures(prev_img, ...
-                    prev_keypoints);
-                [curr_descriptors, curr_keypoints] = extractFeatures(curr_img, ...
-                    curr_keypoints);
-                % Match Harris features in the new image
-                indexPairs = matchFeatures(prev_descriptors, ...
-                    curr_descriptors);
-                % Get set of keypoints for new image
-                curr_pts = curr_keypoints.Location(indexPairs(:,2),:);
-                curr_landmarks = prev_state.landmarks(indexPairs(:,1),:);
-                % Estimate pose in world coordinates
-                [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(...
-                    curr_pts, curr_landmarks, obj.cameraParams, ...
-                    'MaxNumTrials', 4000, 'Confidence', 90, ...
-                    'MaxReprojectionError', 2.0);
-                % Keep only inliers from PnP
-                curr_state.landmarks = curr_landmarks(inl_indx, :);
-                curr_state.keypoints = curr_pts(inl_indx, :);
-            end
-
+            % Instantiate KLT tracker and initialize
+            [curr_pts, val_idx, ~] = obj.tracker.track(prev_img,...
+                curr_img, prev_state.keypoints);
+            % Estimate the pose in world coordinates
+            [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(...
+                curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
+                obj.cameraParams, ...
+                'MaxNumTrials', 5000, 'Confidence', 95, ...
+                'MaxReprojectionError', 3);
+            % Keep only inliers from PnP
+            curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx), :);
+            curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx), :);
+            
             % Update pose
             curr_pose = [R_WC;T_WC];
             

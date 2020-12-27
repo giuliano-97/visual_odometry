@@ -7,7 +7,7 @@ rng(1023);
 % Load data
 test_bootstrap = true;
 
-dataset_type = 1; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+dataset_type = 0; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
 
 % Pick the correspoinding data loader
 if dataset_type ==0
@@ -30,7 +30,7 @@ if test_bootstrap
     img0 = data_loader.retrieveFrame(bootstrap_frames(1));
     img1 = data_loader.retrieveFrame(bootstrap_frames(2));
     
-    if ndims(img0) > 2
+    if ndims(img0) == 3
         img0 = rgb2gray(img0);
         img1 = rgb2gray(img1);
     end
@@ -51,7 +51,7 @@ else
     data_loader.reset(bootstrap_frames(2)+1);
 end
 % Initialize the vo pipeline
-vo = VisualOdometry(cameraParams, 'KeypointsMode', 'KLT');
+vo = VisualOdometry(cameraParams);
 
 % Initialize the state struct
 state = initializeState(landmarks, keypoints, pose, 50);
@@ -86,13 +86,13 @@ num_frames = 50;
 assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enougth frames');
 
-if ndims(prev_img) > 2
+if ndims(prev_img) == 3
     prev_img = rgb2gray(prev_img);
 end
 
 for i = data_loader.index : data_loader.index+num_frames-1
     curr_img = data_loader.next();
-    if ndims(curr_img) > 2
+    if ndims(curr_img) == 3
         curr_img = rgb2gray(curr_img);
     end
     
