@@ -34,10 +34,6 @@ classdef VisualOdometry
                 curr_img % The new image
                 prev_state
             end
-            %% Detect Harris features in the new image
-            % Detect keypoints in the new image - will need anyways later
-            % for new candidate keypoints selection
-            curr_keypoints = detectHarrisFeatures(curr_img);
             
             %% Estimate camera pose from 2D-3D point correspondences
             
@@ -52,7 +48,7 @@ classdef VisualOdometry
                 'MaxReprojectionError', 3);
             % Keep only inliers from PnP
             curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx), :);
-            curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx), :);
+            curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx), :); %#ok<STRNU>
             
             % Update pose
             curr_pose = [R_WC;T_WC];
@@ -61,10 +57,9 @@ classdef VisualOdometry
             [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
                 prev_state, curr_img, curr_pose, obj.cameraParams, obj.tracker);
             %% Select new keypoints to track
-            % Select subset of new keypoints
-            validIndex = selectCandidateKeypoints(...
-                tracked_keypoints, curr_keypoints.Location);
-            new_candidate_keypoints = curr_keypoints.Location(validIndex, :);
+            new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
+                tracked_keypoints, 'MaxNewKeypoints', 50, ...
+                'MinQuality', 0.01, 'MinDistance', 20);
             
             % Appending candidates to keypoints to track
             curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...

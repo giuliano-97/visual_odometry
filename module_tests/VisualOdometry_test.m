@@ -108,13 +108,10 @@ for i = data_loader.index : data_loader.index+num_frames-1
     
     pause(0.01);    hold on;
 
-    
     % Update keypoints view
     subplot(2,2,[3,4]);
     imshow(insertMarker(curr_img, state.keypoints, 'o', 'Color', 'red'));
     
-    
     poses(:,:,i+1) = pose;
     prev_img = curr_img;
-    state
 end
