@@ -106,7 +106,7 @@ for i = data_loader.index : data_loader.index+num_frames-1
     subplot(2,2,[1,2]);
     plotCameraPose(pose, sprintf('Camera %d', i));
     
-    pause(0.01);    hold on;
+    pause(0.01); hold on;
 
     % Update keypoints view
     subplot(2,2,[3,4]);

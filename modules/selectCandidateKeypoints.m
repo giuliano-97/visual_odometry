@@ -32,7 +32,9 @@ new_kps = new_kps(sum(L,2) == 0);
 
 % Cap the maximum number of keypoints - pick the required number uniformly
 if numel(new_kps) > optionalArgs.MaxNewKeypoints
-    new_kps = selectUniform(new_kps, optionalArgs.MaxNewKeypoints, size(img));
+    new_kps = selectUniform(...
+        [new_kps; cornerPoints(curr_kps)], ...
+        optionalArgs.MaxNewKeypoints, size(img));
 end
 
 new_kps_loc = new_kps.Location;
