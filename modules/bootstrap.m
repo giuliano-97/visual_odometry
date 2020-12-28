@@ -18,6 +18,7 @@ function [keypoints, landmarks, pose] = bootstrap(img0, img1, cameraParams,...
             {'KLT', 'HardMatching'})} = 'KLT'
         optionalArgs.MinQuality double = 0.01 % Min. quality of detected Harris features 
         optionalArgs.FilterSize double = 5 % Filter size for Harris feature detection
+        optionalArgs.uniformFeaturesPercentage double = 100 % Number of uniform features picked
     end
     
 %% Extract bootstrap set of keypoints and landmarks
@@ -29,7 +30,9 @@ points_0 = detectHarrisFeatures(img0,...
 
 % Select points uniformly distributed
 % FIXME: this is hard-coded - not good!
-points_0 = selectUniform(points_0, 1000 ,size(img0));
+points_0 = selectUniform(points_0,...
+    round(length(points_0)*optionalArgs.uniformFeaturesPercentage/100),...
+    size(img0));
 
 if strcmp(optionalArgs.FeatureMatchingMode, 'HardMatching')
     % Detect keypoint features in the second image

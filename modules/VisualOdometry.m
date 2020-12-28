@@ -20,7 +20,7 @@ classdef VisualOdometry
                 optionalArgs.maxTemporalRecall uint32 = 20
                 optionalArgs.KeypointsMode string ...
                     {mustBeMember(optionalArgs.KeypointsMode,...
-                    {'KLT', 'Matched'})} = 'KLT'
+                    {'KLT', 'Matched'})} = 'KLT',
             end
             obj.cameraParams = cameraParams;
             obj.angularThreshold = optionalArgs.angularThreshold;
@@ -30,7 +30,7 @@ classdef VisualOdometry
         end
         
         function [curr_state, curr_pose, pose_status] = processFrame(obj, prev_img, ...
-                curr_img, prev_state)
+                curr_img, prev_state, optionalArgs)
             % PROCESSFRAME Summary of this method goes here
             %   TODO: add detailed explanation
             arguments
@@ -38,6 +38,7 @@ classdef VisualOdometry
                 prev_img
                 curr_img % The new image
                 prev_state
+                optionalArgs.percentageUniformFeatures = 75;
             end
             %% Detect Harris features in the new image
             % Detect keypoints in the new image - will need anyways later
@@ -75,7 +76,7 @@ classdef VisualOdometry
                 curr_pts = curr_keypoints.Location(indexPairs(:,2),:);
                 curr_landmarks = prev_state.landmarks(indexPairs(:,1),:);
                 % Estimate pose in world coordinates
-                [R_WC, T_WC, inl_indx pose_status] = estimateWorldCameraPose(...
+                [R_WC, T_WC, inl_indx, pose_status] = estimateWorldCameraPose(...
                     curr_pts, curr_landmarks, obj.cameraParams, ...
                     'MaxNumTrials', 4000, 'Confidence', 90, ...
                     'MaxReprojectionError', 2.0);
@@ -98,10 +99,13 @@ classdef VisualOdometry
             [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
                 prev_state, curr_img, curr_pose, obj.cameraParams, obj.tracker);
             %% Select new keypoints to track
+            uniform_keypoints = selectUniform(curr_keypoints,...
+                round(length(curr_keypoints)*optionalArgs.percentageUniformFeatures/100),...
+                size(curr_img));
             % Select subset of new keypoints
             validIndex = selectCandidateKeypoints(...
-                tracked_keypoints, curr_keypoints.Location);
-            new_candidate_keypoints = curr_keypoints.Location(validIndex, :);
+                tracked_keypoints, uniform_keypoints.Location);
+            new_candidate_keypoints = uniform_keypoints.Location(validIndex, :);
             
             % Appending candidates to keypoints to track
             curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...

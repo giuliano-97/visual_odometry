@@ -7,9 +7,10 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
         curr_pose
         camera_params
         tracker
-        optionalArgs.max_temporal_recall = 50;
+        optionalArgs.max_temporal_recall = 20;
         optionalArgs.admissible_angular_threshold = 2.5;
         optionalArgs.max_landmarks = 500;
+        optionalArgs.max_reprojection_err = 5;
     end
     
     %% Tracking current keypoints and landmarks
@@ -42,10 +43,10 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
             curr_pose(1:3,:),...
             curr_pose(end,:));
         cam_mat1 = cameraMatrix(camera_params, rotMat1, transVec1);
-        cand_landmark = triangulate(prev_state.candidate_first_keypoints(i,:),...
-                                    candidate_tracked(i,:),...
-                                    cam_mat0,...
-                                    cam_mat1);
+        [cand_landmark, repro_err, is_valid] = triangulate(prev_state.candidate_first_keypoints(i,:),...
+                                         candidate_tracked(i,:),...
+                                         cam_mat0,...
+                                         cam_mat1);
         
         % Add views with keypoints to viewset
 %         vSet = imageviewset;
@@ -70,7 +71,7 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
 %             cameraPoses, intrinsics);
                                 
         % Ignore if point behind camera
-        if dot(cand_landmark-curr_pose(end,:), curr_pose(3,:)) <= 0
+        if ~is_valid || repro_err >optionalArgs.max_reprojection_err
             continue
         end
         % Add landmarks if complies baseline threshold
