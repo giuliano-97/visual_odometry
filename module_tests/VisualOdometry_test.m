@@ -7,7 +7,7 @@ rng(1023);
 % Load data
 test_bootstrap = true;
 
-dataset_type = 1; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+dataset_type = 2; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
 
 % Pick the correspoinding data loader
 if dataset_type ==0
@@ -96,25 +96,34 @@ for i = data_loader.index : data_loader.index+num_frames-1
         curr_img = rgb2gray(curr_img);
     end
     
-    [state, pose] = ...
+    [state, pose, frame_status] = ...
         vo.processFrame(prev_img, curr_img, state);
     
-    subplot(2,2,[1,2]);
-    plot3(state.landmarks(:,1), state.landmarks(:,2), state.landmarks(:,3), '*');
-    
-    % Plot camera pose
-    subplot(2,2,[1,2]);
-    plotCameraPose(pose, sprintf('Camera %d', i));
-    
-    pause(0.01);    hold on;
+    % Do not plot unavailable pose
+    if frame_status >0 
+        fprintf('Pose %05d\n UNRELIABLE POSE', i);
+    else
+        subplot(2,2,[1,2]);
+        plot3(state.landmarks(:,1), state.landmarks(:,2), state.landmarks(:,3), '*');
 
-    
-    % Update keypoints view
-    subplot(2,2,[3,4]);
-    imshow(insertMarker(curr_img, state.keypoints, 'o', 'Color', 'red'));
-    
-    
-    poses(:,:,i+1) = pose;
-    prev_img = curr_img;
-    state
+        % Plot camera pose
+        subplot(2,2,[1,2]);
+        plotCameraPose(pose, sprintf('Camera %d', i));
+
+        pause(0.01);    hold on;
+
+
+        % Update keypoints view
+        subplot(2,2,[3,4]);
+        imshow(insertMarker(curr_img, state.keypoints, 'o', 'Color', 'red'));
+
+
+        poses(:,:,i+1) = pose;
+        prev_img = curr_img;
+
+        fprintf('Pose %05d\n', i);
+        fprintf('\t Pos [%s]\n', num2str(pose(end,:)));
+        fprintf('\t Rot [%s]\n\n', num2str(reshape(pose(1:3,:),1,9)));
+        state
+    end
 end

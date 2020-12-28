@@ -29,7 +29,7 @@ classdef VisualOdometry
             obj.tracker = KLTTracker();
         end
         
-        function [curr_state, curr_pose] = processFrame(obj, prev_img, ...
+        function [curr_state, curr_pose, pose_status] = processFrame(obj, prev_img, ...
                 curr_img, prev_state)
             % PROCESSFRAME Summary of this method goes here
             %   TODO: add detailed explanation
@@ -51,7 +51,7 @@ classdef VisualOdometry
                 [curr_pts, val_idx, ~] = obj.tracker.track(prev_img,...
                     curr_img, prev_state.keypoints);
                 % Estimate the pose in world coordinates
-                [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(...
+                [R_WC, T_WC, inl_indx, pose_status] = estimateWorldCameraPose(...
                     curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
                     obj.cameraParams, ...
                     'MaxNumTrials', 5000, 'Confidence', 95, ...
@@ -75,7 +75,7 @@ classdef VisualOdometry
                 curr_pts = curr_keypoints.Location(indexPairs(:,2),:);
                 curr_landmarks = prev_state.landmarks(indexPairs(:,1),:);
                 % Estimate pose in world coordinates
-                [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(...
+                [R_WC, T_WC, inl_indx pose_status] = estimateWorldCameraPose(...
                     curr_pts, curr_landmarks, obj.cameraParams, ...
                     'MaxNumTrials', 4000, 'Confidence', 90, ...
                     'MaxReprojectionError', 2.0);
@@ -83,7 +83,14 @@ classdef VisualOdometry
                 curr_state.landmarks = curr_landmarks(inl_indx, :);
                 curr_state.keypoints = curr_pts(inl_indx, :);
             end
-
+            
+            % If ignore frame if pose estimation failed
+            if pose_status > 0
+                curr_pose = [eye(3), zeros(1,3)];
+                curr_state = prev_state;
+                return
+            end
+            
             % Update pose
             curr_pose = [R_WC;T_WC];
             
