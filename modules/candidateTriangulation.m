@@ -9,6 +9,7 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
         tracker
         optionalArgs.max_temporal_recall = 50;
         optionalArgs.admissible_angular_threshold = 2.5;
+        optionalArgs.max_landmarks = 500;
     end
     
     %% Tracking current keypoints and landmarks
@@ -72,6 +73,10 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
         % Add landmarks if complies baseline threshold
         if calculateAngleDeg(cand_landmark, prev_state.candidate_first_poses{i},...
                             curr_pose) > optionalArgs.admissible_angular_threshold
+            if size(landmarks, 1) >= optionalArgs.max_landmarks
+                landmarks = landmarks(2:end,:);
+                keypoints = keypoints(2:end,:);
+            end
             landmarks = [landmarks; cand_landmark];
             keypoints = [keypoints; candidate_tracked(i,:)];
         else
