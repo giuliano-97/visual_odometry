@@ -69,7 +69,10 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
 %         [landmarks, ~, validIndex] = triangulateMultiview(tracks, ...
 %             cameraPoses, intrinsics);
                                 
-                                
+        % Ignore if point behind camera
+        if dot(cand_landmark-curr_pose(end,:), curr_pose(3,:)) <= 0
+            continue
+        end
         % Add landmarks if complies baseline threshold
         if calculateAngleDeg(cand_landmark, prev_state.candidate_first_poses{i},...
                             curr_pose) > optionalArgs.admissible_angular_threshold
