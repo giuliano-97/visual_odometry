@@ -38,29 +38,22 @@ classdef VisualOdometry
                 prev_state
                 optionalArgs.percentageUniformFeatures = 75;
             end
-            %% Detect Harris features in the new image
-            % Detect keypoints in the new image - will need anyways later
-            % for new candidate keypoints selection
-            curr_keypoints = detectHarrisFeatures(curr_img);
             
             %% Estimate camera pose from 2D-3D point correspondences
             
-
-              % Instantiate KLT tracker and initialize
-                [curr_pts, val_idx, ~] = obj.tracker.track(prev_img,...
-                    curr_img, prev_state.keypoints);
-                % Estimate the pose in world coordinates
-                [R_WC, T_WC, inl_indx, pose_status] = estimateWorldCameraPose(...
-                    curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
-                    obj.cameraParams, ...
-                    'MaxNumTrials', 5000, 'Confidence', 95, ...
-                    'MaxReprojectionError', 3);
-                % Keep only inliers from PnP
-                curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx), :);
-                curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx), :);
-                
-
-
+            % Instantiate KLT tracker and initialize
+            [curr_pts, val_idx, ~] = obj.tracker.track(prev_img,...
+                curr_img, prev_state.keypoints);
+            % Estimate the pose in world coordinates
+            [R_WC, T_WC, inl_indx, pose_status] = estimateWorldCameraPose(...
+                curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
+                obj.cameraParams, ...
+                'MaxNumTrials', 5000, 'Confidence', 95, ...
+                'MaxReprojectionError', 3);
+            % Keep only inliers from PnP
+            curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx), :);
+            curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx), :);
+            
             % If ignore frame if pose estimation failed
             if pose_status > 0
                 curr_pose = [eye(3), zeros(1,3)];
@@ -82,7 +75,7 @@ classdef VisualOdometry
                     [curr_state.keypoints; curr_state.candidate_keypoints],...
                     'MaxNewKeypoints', 50, 'MinQuality', 0.01, ...
                     'MinDistance', 30);
-
+                
                 % Appending candidates to keypoints to track
                 curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
                     new_candidate_keypoints];
