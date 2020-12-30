@@ -68,7 +68,6 @@ poses = zeros(4,3,10);
 poses(:,:,1) = pose;
 
 
-
 %% Test continuous operation
 % Initialize VO visualizer
 vov = VOVisualizer;

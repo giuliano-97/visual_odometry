@@ -28,7 +28,7 @@ classdef VisualOdometry
         end
         
         function [curr_state, curr_pose, pose_status] = processFrame(obj, prev_img, ...
-                curr_img, prev_state, optionalArgs)
+                curr_img, prev_state)
             % PROCESSFRAME Summary of this method goes here
             %   TODO: add detailed explanation
             arguments
@@ -36,7 +36,6 @@ classdef VisualOdometry
                 prev_img
                 curr_img % The new image
                 prev_state
-                optionalArgs.percentageUniformFeatures = 75;
             end
             
             %% Estimate camera pose from 2D-3D point correspondences
@@ -67,13 +66,16 @@ classdef VisualOdometry
             %% Triangulate new landmarks
             [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
                 prev_state, curr_img, curr_pose, obj.cameraParams, obj.tracker);
+            
+            
             %% Select new keypoints to track
             % Only select new keypoints if the number of landmarks which
             % are being tracked is smaller than the allowed maximum
             if length(curr_state.keypoints) < obj.maxNumLandmarks
                 new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                     [curr_state.keypoints; curr_state.candidate_keypoints],...
-                    'MaxNewKeypoints', 50, 'MinQuality', 0.01, ...
+                    'MaxNewKeypoints', 50,...
+                    'MinQuality', 0.01, ...
                     'MinDistance', 30);
                 
                 % Appending candidates to keypoints to track
