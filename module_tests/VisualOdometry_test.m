@@ -7,7 +7,7 @@ rng(1023);
 % Load data
 test_bootstrap = true;
 
-dataset_type = 0; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+dataset_type = 1; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
 
 % Pick the correspoinding data loader
 if dataset_type ==0
@@ -67,11 +67,14 @@ pose = [eye(3); zeros(1,3)];
 poses = zeros(4,3,10);
 poses(:,:,1) = pose;
 
+
+
 %% Test continuous operation
 % Initialize VO visualizer
 vov = VOVisualizer;
 vov.update(prev_img, keypoints, landmarks, pose);
 pause(0.5);
+
 
 if ndims(prev_img) == 3
     prev_img = rgb2gray(prev_img);

@@ -9,7 +9,9 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
         tracker
         optionalArgs.max_temporal_recall = 50
         optionalArgs.admissible_angular_threshold = 2.5
-        optionalArgs.maxDepth = 1000
+        optionalArgs.max_landmarks = 500
+        optionalArgs.max_reprojection_err = 5
+	optionalArgs.maxDepth = 1000
     end
     
     %% Tracking current keypoints and landmarks
@@ -76,11 +78,18 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
 %         [landmarks, ~, validIndex] = triangulateMultiview(tracks, ...
 %             cameraPoses, intrinsics);
                                 
-                                
+        % Ignore if point behind camera
+        if ~is_valid || repro_err >optionalArgs.max_reprojection_err
+            continue
+        end
         % Add landmarks if complies baseline threshold
-        if calculateAngleDeg(cand_landmarks, prev_state.candidate_first_poses{i},...
+        if calculateAngleDeg(cand_landmark, prev_state.candidate_first_poses{i},...
                             curr_pose) > optionalArgs.admissible_angular_threshold
-            landmarks = [landmarks; cand_landmarks];
+            if size(landmarks, 1) >= optionalArgs.max_landmarks
+                landmarks = landmarks(2:end,:);
+                keypoints = keypoints(2:end,:);
+            end
+            landmarks = [landmarks; cand_landmark];
             keypoints = [keypoints; candidate_tracked(i,:)];
         else
             % Discard candidate if has been stored for too long

@@ -27,8 +27,8 @@ classdef VisualOdometry
             obj.tracker = KLTTracker();
         end
         
-        function [curr_state, curr_pose] = processFrame(obj, prev_img, ...
-                curr_img, prev_state)
+        function [curr_state, curr_pose, pose_status] = processFrame(obj, prev_img, ...
+                curr_img, prev_state, optionalArgs)
             % PROCESSFRAME Summary of this method goes here
             %   TODO: add detailed explanation
             arguments
@@ -36,22 +36,37 @@ classdef VisualOdometry
                 prev_img
                 curr_img % The new image
                 prev_state
+                optionalArgs.percentageUniformFeatures = 75;
             end
+            %% Detect Harris features in the new image
+            % Detect keypoints in the new image - will need anyways later
+            % for new candidate keypoints selection
+            curr_keypoints = detectHarrisFeatures(curr_img);
             
             %% Estimate camera pose from 2D-3D point correspondences
             
-            % Instantiate KLT tracker and initialize
-            [curr_pts, val_idx, ~] = obj.tracker.track(prev_img,...
-                curr_img, prev_state.keypoints);
-            % Estimate the pose in world coordinates
-            [R_WC, T_WC, inl_indx] = estimateWorldCameraPose(...
-                curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
-                obj.cameraParams, ...
-                'MaxNumTrials', 5000, 'Confidence', 95, ...
-                'MaxReprojectionError', 3);
-            % Keep only inliers from PnP
-            curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx), :);
-            curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx), :); %#ok<STRNU>
+
+              % Instantiate KLT tracker and initialize
+                [curr_pts, val_idx, ~] = obj.tracker.track(prev_img,...
+                    curr_img, prev_state.keypoints);
+                % Estimate the pose in world coordinates
+                [R_WC, T_WC, inl_indx, pose_status] = estimateWorldCameraPose(...
+                    curr_pts(val_idx,:), prev_state.landmarks(val_idx,:),...
+                    obj.cameraParams, ...
+                    'MaxNumTrials', 5000, 'Confidence', 95, ...
+                    'MaxReprojectionError', 3);
+                % Keep only inliers from PnP
+                curr_state.landmarks = prev_state.landmarks(val_idx(inl_indx), :);
+                curr_state.keypoints = prev_state.keypoints(val_idx(inl_indx), :);
+                
+
+
+            % If ignore frame if pose estimation failed
+            if pose_status > 0
+                curr_pose = [eye(3), zeros(1,3)];
+                curr_state = prev_state;
+                return
+            end
             
             % Update pose
             curr_pose = [R_WC;T_WC];
@@ -59,7 +74,6 @@ classdef VisualOdometry
             %% Triangulate new landmarks
             [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
                 prev_state, curr_img, curr_pose, obj.cameraParams, obj.tracker);
-            
             %% Select new keypoints to track
             % Only select new keypoints if the number of landmarks which
             % are being tracked is smaller than the allowed maximum
