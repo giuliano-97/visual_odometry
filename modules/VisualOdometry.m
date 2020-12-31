@@ -26,6 +26,7 @@ classdef VisualOdometry
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
             obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
+            obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker();
         end
         
@@ -39,114 +40,101 @@ classdef VisualOdometry
                 curr_state
                 curr_pose
             end
-            
-            %% Tracking current keypoints and landmarks
-%             [keypoints_tracked, val_key, ~] = obj.tracker.track(prev_img,...
-%                 curr_img,...
-%                 prev_state.keypoints);
-%             landmarks = prev_state.landmarks(val_key, :);
-%             keypoints = keypoints_tracked(val_key, :);
-            
+
+            % Fetch current landmarks and keypoints
             landmarks = curr_state.landmarks;
             keypoints = curr_state.keypoints;
             
-            %% Introducing candidates if appropriate
             % Fast-forward candidates by tracking from previous frame
-            [candidate_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
+            [candidates_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
                 curr_img,...
                 prev_state.candidate_keypoints);
-            tracked_keypoints = candidate_tracked(val_cand,:);
+            tracked_keypoints = candidates_tracked(val_cand,:);
+            
+            % Build camera intrinsics
+            K = obj.cameraParams.IntrinsicMatrix;
+            focalLength = [K(1,1), K(2,2)];
+            principalPoint = [K(3,1), K(3,2)];
+            imageSize = size(prev_img);
+            intrinsics = cameraIntrinsics(focalLength, principalPoint, imageSize);
+            
+            % Create new empty viewset
+            vSet = imageviewset;
+            
+            % Add the last view
+            last_view_id = uint32(obj.maxTemporalRecall + 1);
+            vSet = addView(vSet, last_view_id, ...
+                rigid3d(curr_pose(1:3, 1:3), curr_pose(4,:)), ...
+                'Points', candidates_tracked);
+            
+            % Initialize a cell array to store the assignment of keypoints
+            % to each of the previous N views
+            bins = cell(obj.maxTemporalRecall, 2);
+            % Iterate over and bin all the valid keypoints
+            for i=find(val_cand.')
+                % Compute the view id of this keypoint
+                view_id = prev_state.candidate_time_indxs(i) + last_view_id;
+                % If there are no points already assigned add pose
+                if isempty(bins{view_id,1})
+                    bins{view_id,2} = prev_state.candidate_first_poses{i};
+                end
+                % Bin the keypoint
+                bins{view_id,1} = [bins{view_id,1}, i];
+            end
             
             candidate_keypoints = double.empty(0,2);
             candidate_first_keypoints = double.empty(0,2);
             candidate_first_poses = [{}];
             candidate_time_indxs = [];
             
-            % Build camera matrix for the current pose
-%             [rotMat1, transVec1] = cameraPoseToExtrinsics(...
-%                     curr_pose(1:3,:),...
-%                     curr_pose(end,:));
-%             cam_mat1 = cameraMatrix(obj.cameraParams, rotMat1, transVec1);            
-%             
-            % Iterate over all candidates
-            for i=find(val_cand.')
-                % Triangulate candidate
-%                 [rotMat0, transVec0] = cameraPoseToExtrinsics(...
-%                     prev_state.candidate_first_poses{i}(1:3,:),...
-%                     prev_state.candidate_first_poses{i}(end,:));
-%                 cam_mat0 = cameraMatrix(obj.cameraParams, rotMat0, transVec0);
-%                 [cand_landmark, repro_err, is_valid] = triangulate(...,
-%                     prev_state.candidate_first_keypoints(i,:),...
-%                     candidate_tracked(i,:),...
-%                     cam_mat0,...
-%                     cam_mat1);
-                
-                %% Triangulate
-                % Add views with keypoints to viewset
-                vSet = imageviewset;
-                vSet = addView(vSet, 1, rigid3d(...
-                    [prev_state.candidate_first_poses{i},[0;0;0;1]]),...
-                    'Points', prev_state.candidate_keypoints(i,:));
-                vSet = addView(vSet, 2, rigid3d(curr_pose(1:3,:),curr_pose(end,:)),...
-                    'Points',...
-                    candidate_tracked(i,:));
-                % Add correspondences to viewset
-                vSet = addConnection(vSet, 1, 2, 'Matches', ...
-                    [1; 1]');                
-                % Find tracks
-                tracks = findTracks(vSet);
-                
-                % Get camera poses
-                cameraPoses = poses(vSet);
-
-                % Triangulate points
-                K = obj.cameraParams.IntrinsicMatrix;
-                focalLength = [K(1,1), K(2,2)];
-                principalPoint = [K(3,1), K(3,2)];
-                imageSize = size(prev_img);
-                intrinsics = cameraIntrinsics(focalLength, principalPoint, imageSize);
-
-                
-                [cand_landmark, repro_err, is_valid] = triangulateMultiview(tracks, ...
-                    cameraPoses, intrinsics);
-                
-                
-                
-                % Keep only valid landmarks i.e. discard the ones which have
-                % negative depth, are too far away, or whose reprojection error
-                % is higher than the required threshold
-                is_valid = is_valid & cand_landmark(:,3) > 0 & ...
-                    repro_err <= obj.maxReprojectionError;
-               
-                
-                % Ignore if point behind camera or invalid
-                if ~is_valid
-                    continue
-                end
-                
-                % Add landmarks if complies baseline threshold
-                if calculateAngleDeg(cand_landmark, prev_state.candidate_first_poses{i},...
-                        curr_pose) > obj.angularThreshold
-                    if size(landmarks, 1) >= obj.maxNumLandmarks
-                        landmarks = landmarks(2:end,:);
-                        keypoints = keypoints(2:end,:);
-                    end
-                    landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
-                    keypoints = [keypoints; candidate_tracked(i,:)];
-                else
-                    % Discard candidate if has been stored for too long
-                    if prev_state.candidate_time_indxs(i) > -obj.maxTemporalRecall
-                        candidate_keypoints = [candidate_keypoints;...
-                            candidate_tracked(i,:)];
-                        candidate_first_keypoints = [candidate_first_keypoints;...
-                            prev_state.candidate_first_keypoints(i,:)];
-                        candidate_first_poses = [candidate_first_poses,...
-                            prev_state.candidate_first_poses{i}];
-                        candidate_time_indxs = [candidate_time_indxs, ...
-                            prev_state.candidate_time_indxs(i)-1];
+            % Loop over non-empty bins and add views and connections
+            for i=1:obj.maxTemporalRecall
+                if ~isempty(bins{i,1})
+                    % Get all the candidate keypoints
+                    kps_idxs = bins{i,1};
+                    kps = prev_state.candidate_first_keypoints(kps_idxs,:);
+                    % Add view
+                    pose = bins{i,2};
+                    vSet = addView(vSet, i, ...
+                        rigid3d(pose(1:3, 1:3), pose(4,:)), ...
+                        'Points', kps);
+                    % Add connection to the last view
+                    idx_pairs = [1:numel(kps_idxs); kps_idxs]';
+                    vSet = addConnection(vSet, i, last_view_id, ...
+                        'Matches', idx_pairs);
+                    % Find tracks and poses for this and the last view
+                    view_ids = [i, last_view_id];
+                    tracks = findTracks(vSet, view_ids);
+                    cameraPoses = poses(vSet, view_ids);
+                    % Triangulate
+                    [cand_landmarks, repro_errs, is_valid] = triangulateMultiview(tracks, ...
+                        cameraPoses, intrinsics);
+                    is_valid = is_valid & ...
+                        repro_errs < obj.maxReprojectionError & ...
+                        cand_landmarks(:,3) > 0;
+                    % Validate the landmarks
+                    for j=find(is_valid.')
+                        idx = kps_idxs(j);
+                        cand_landmark = cand_landmarks(j,:);
+                        angle = calculateAngleDeg(cand_landmark, pose, curr_pose);
+                        if angle > obj.angularThreshold
+                            if size(landmarks, 1) < obj.maxNumLandmarks
+                                landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
+                                keypoints = [keypoints; candidates_tracked(idx,:)];
+                            end
+                        % Discard candidate if it has been stored for too long
+                        elseif prev_state.candidate_time_indxs(idx) > -obj.maxTemporalRecall
+                            candidate_keypoints = [candidate_keypoints;...
+                                candidates_tracked(idx,:)];
+                            candidate_first_keypoints = [candidate_first_keypoints;...
+                                prev_state.candidate_first_keypoints(idx,:)];
+                            candidate_first_poses = [candidate_first_poses,...
+                                prev_state.candidate_first_poses{idx}];
+                            candidate_time_indxs = [candidate_time_indxs, ...
+                                prev_state.candidate_time_indxs(idx)-1];
+                        end
                     end
                 end
-                
             end
             
             curr_state.landmarks = landmarks;
@@ -198,10 +186,8 @@ classdef VisualOdometry
             curr_pose = [R_WC;T_WC];
             
             %% Triangulate new landmarks
-            tic
             [curr_state, tracked_keypoints] = obj.candidateTriangulation(...
                 prev_img, prev_state, curr_img, curr_state, curr_pose);
-            toc
             
             %% Select new keypoints to track
             % Only select new keypoints if the number of landmarks which
@@ -222,7 +208,7 @@ classdef VisualOdometry
             curr_state.candidate_first_poses = [curr_state.candidate_first_poses,...
                 repmat({curr_pose},1,size(new_candidate_keypoints,1))];
             curr_state.candidate_time_indxs = [curr_state.candidate_time_indxs,...
-                zeros(1, size(new_candidate_keypoints,1))];
+                -1*ones(1, size(new_candidate_keypoints,1))];
         end
     end
 end

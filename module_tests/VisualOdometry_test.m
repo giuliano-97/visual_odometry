@@ -57,10 +57,11 @@ assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enough frames');
 
 % Initialize the vo pipeline
-vo = VisualOdometry(cameraParams);
+max_temporal_recall = 20;
+vo = VisualOdometry(cameraParams, 'MaxTemporalRecall', max_temporal_recall);
 
 % Initialize the state struct
-state = initializeState(landmarks, keypoints, pose, 50);
+state = initializeState(landmarks, keypoints, pose, max_temporal_recall);
 
 % Initialize camera poses array
 pose = [eye(3); zeros(1,3)];
