@@ -11,7 +11,7 @@ arguments
    img % The image in which the new keypoints should be extracted
    curr_kps   % Image coordinates of the new keypoints
    optionalArgs.MaxNewKeypoints double = 50
-   optionalArgs.MinDistance double = 10 % The (optional) distance threshold
+   optionalArgs.MinDistance double = 20 % The (optional) distance threshold
    optionalArgs.MinQuality double = 0.01 % Harris keypoints quality
    optionalArgs.FilterSize double = 3 % Harris detector filter size
 end
@@ -31,10 +31,9 @@ L = D < optionalArgs.MinDistance;
 new_kps = new_kps(sum(L,2) == 0);
 
 % Cap the maximum number of keypoints - pick the required number uniformly
-if numel(new_kps) > optionalArgs.MaxNewKeypoints
+if size(new_kps, 1) > optionalArgs.MaxNewKeypoints
     new_kps = selectUniform(...
-        [new_kps; cornerPoints(curr_kps)], ...
-        optionalArgs.MaxNewKeypoints, size(img));
+        new_kps, optionalArgs.MaxNewKeypoints, size(img));
 end
 
 new_kps_loc = new_kps.Location;

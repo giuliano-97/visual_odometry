@@ -16,9 +16,9 @@ classdef VisualOdometry
             %   Initialize the visual odometry pipeline
             arguments
                 cameraParams
-                optionalArgs.angularThreshold double = 5
+                optionalArgs.angularThreshold double = 2.5
                 optionalArgs.maxTemporalRecall uint32 = 20
-                optionalArgs.maxNumLandmarks uint32 = 500
+                optionalArgs.maxNumLandmarks uint32 = 700
             end
             obj.cameraParams = cameraParams;
             obj.angularThreshold = optionalArgs.angularThreshold;
@@ -75,8 +75,8 @@ classdef VisualOdometry
                 new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                     [curr_state.keypoints; curr_state.candidate_keypoints],...
                     'MaxNewKeypoints', 50,...
-                    'MinQuality', 0.01, ...
-                    'MinDistance', 30);
+                    'MinQuality', 0.001, ...
+                    'MinDistance', 10);
                 
                 % Appending candidates to keypoints to track
                 curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
