@@ -63,51 +63,61 @@ classdef VisualOdometry
             candidate_time_indxs = [];
             
             % Build camera matrix for the current pose
-            [rotMat1, transVec1] = cameraPoseToExtrinsics(...
-                    curr_pose(1:3,:),...
-                    curr_pose(end,:));
-            cam_mat1 = cameraMatrix(obj.cameraParams, rotMat1, transVec1);            
-            
+%             [rotMat1, transVec1] = cameraPoseToExtrinsics(...
+%                     curr_pose(1:3,:),...
+%                     curr_pose(end,:));
+%             cam_mat1 = cameraMatrix(obj.cameraParams, rotMat1, transVec1);            
+%             
             % Iterate over all candidates
             for i=find(val_cand.')
                 % Triangulate candidate
-                [rotMat0, transVec0] = cameraPoseToExtrinsics(...
-                    prev_state.candidate_first_poses{i}(1:3,:),...
-                    prev_state.candidate_first_poses{i}(end,:));
-                cam_mat0 = cameraMatrix(obj.cameraParams, rotMat0, transVec0);
-                [cand_landmark, repro_err, is_valid] = triangulate(...,
-                    prev_state.candidate_first_keypoints(i,:),...
-                    candidate_tracked(i,:),...
-                    cam_mat0,...
-                    cam_mat1);
+%                 [rotMat0, transVec0] = cameraPoseToExtrinsics(...
+%                     prev_state.candidate_first_poses{i}(1:3,:),...
+%                     prev_state.candidate_first_poses{i}(end,:));
+%                 cam_mat0 = cameraMatrix(obj.cameraParams, rotMat0, transVec0);
+%                 [cand_landmark, repro_err, is_valid] = triangulate(...,
+%                     prev_state.candidate_first_keypoints(i,:),...
+%                     candidate_tracked(i,:),...
+%                     cam_mat0,...
+%                     cam_mat1);
+                
+                %% Triangulate
+                % Add views with keypoints to viewset
+                vSet = imageviewset;
+                vSet = addView(vSet, 1, rigid3d(...
+                    [prev_state.candidate_first_poses{i},[0;0;0;1]]),...
+                    'Points', prev_state.candidate_keypoints(i,:));
+                vSet = addView(vSet, 2, rigid3d(curr_pose(1:3,:),curr_pose(end,:)),...
+                    'Points',...
+                    candidate_tracked(i,:));
+                % Add correspondences to viewset
+                vSet = addConnection(vSet, 1, 2, 'Matches', ...
+                    [1; 1]');                
+                % Find tracks
+                tracks = findTracks(vSet);
+                
+                % Get camera poses
+                cameraPoses = poses(vSet);
+
+                % Triangulate points
+                K = obj.cameraParams.IntrinsicMatrix;
+                focalLength = [K(1,1), K(2,2)];
+                principalPoint = [K(3,1), K(3,2)];
+                imageSize = size(prev_img);
+                intrinsics = cameraIntrinsics(focalLength, principalPoint, imageSize);
+
+                
+                [cand_landmark, repro_err, is_valid] = triangulateMultiview(tracks, ...
+                    cameraPoses, intrinsics);
+                
+                
                 
                 % Keep only valid landmarks i.e. discard the ones which have
                 % negative depth, are too far away, or whose reprojection error
                 % is higher than the required threshold
                 is_valid = is_valid & cand_landmark(:,3) > 0 & ...
                     repro_err <= obj.maxReprojectionError;
-                
-                % Add views with keypoints to viewset
-                %         vSet = imageviewset;
-                %         vSet = addView(vSet, 1, rigid3d(...
-                %             [prev_state.candidate_first_poses{i};[0;0;0;1]]),...
-                %             'Points', prev_stat.candidate_tracked(i,:));
-                %         vSet = addView(vSet, 2, rigid3d(R1, t1), 'Points',...
-                %             matched_points1_inliers);
-                %
-                %         % Add correspondences to viewset
-                %         vSet = addConnection(vSet, 1, 2, 'Matches', ...
-                %             [1:num_inliers; 1:num_inliers]');
-                %
-                %         % Find tracks
-                %         tracks = findTracks(vSet);
-                %
-                %         % Get camera poses
-                %         cameraPoses = poses(vSet);
-                %
-                %         % Triangulate points
-                %         [landmarks, ~, validIndex] = triangulateMultiview(tracks, ...
-                %             cameraPoses, intrinsics);
+               
                 
                 % Ignore if point behind camera or invalid
                 if ~is_valid
@@ -168,7 +178,7 @@ classdef VisualOdometry
             
             % Estimate the pose in world coordinates
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
-                valid_tracked_keypoints, valid_landmarks,...
+                double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
                 'MaxNumTrials', 5000, 'Confidence', 98, ...
                 'MaxReprojectionError', 2);
@@ -188,8 +198,10 @@ classdef VisualOdometry
             curr_pose = [R_WC;T_WC];
             
             %% Triangulate new landmarks
+            tic
             [curr_state, tracked_keypoints] = obj.candidateTriangulation(...
                 prev_img, prev_state, curr_img, curr_state, curr_pose);
+            toc
             
             %% Select new keypoints to track
             % Only select new keypoints if the number of landmarks which
