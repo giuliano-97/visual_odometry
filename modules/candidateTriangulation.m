@@ -10,7 +10,7 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
         optionalArgs.max_temporal_recall = 50
         optionalArgs.admissible_angular_threshold = 2.5
         optionalArgs.max_landmarks = 500
-        optionalArgs.max_reprojection_err = 5
+        optionalArgs.max_reprojection_err = 2
         optionalArgs.maxDepth = 1000
     end
 
@@ -54,7 +54,6 @@ function [curr_state, tracked_keypoints] = candidateTriangulation(prev_img,...
         % negative depth, are too far away, or whose reprojection error
         % is higher than the required threshold
         is_valid = is_valid & cand_landmark(:,3) > 0 & ...
-            cand_landmark(:, 3) < optionalArgs.maxDepth & ...
             repro_err <= optionalArgs.max_reprojection_err;
 
         % Add views with keypoints to viewset
