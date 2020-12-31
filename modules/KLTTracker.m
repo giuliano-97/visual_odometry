@@ -10,7 +10,7 @@ classdef KLTTracker
             arguments
                 optionalArgs.NumPyramidLevels = 3;
                 optionalArgs.MaxBidirectionalError = 3;
-                optionalArgs.BlockSize = [31 31];
+                optionalArgs.BlockSize = [41 41];
                 optionalArgs.MaxIterations = 50;
             end
             obj.tracker = vision.PointTracker(...
