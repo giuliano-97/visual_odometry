@@ -17,7 +17,7 @@ classdef VOVisualizer < handle
     methods
         function obj = VOVisualizer(optionalArgs)
             arguments
-               optionalArgs.trajectoryPlotRadius double = 25; 
+               optionalArgs.trajectoryPlotRadius double = 15; 
             end
             obj.topViewTrajectoryPlotRadius = optionalArgs.trajectoryPlotRadius;
             obj.fig = figure('Name', 'Visual Odometry');
@@ -28,21 +28,22 @@ classdef VOVisualizer < handle
         end
         
         function [] = plotScene(obj)
-            subplot(2,2,1);
+            obj.scenePlotAxes = subplot(2,2,1);
             % Plot the current point cloud
             hold off
-            obj.scenePlotAxes = pcshow(obj.landmarks); 
+            plot3(obj.landmarks(:,1), obj.landmarks(:,2), obj.landmarks(:,3), '*'); 
             hold on;
             % Plot the current camera pose
             orientation = obj.cameraPose(1:3,1:3);
             position = obj.cameraPose(4,:);
             absPose = rigid3d(orientation, position);
             plotCamera('AbsolutePose', absPose, 'Size', 1);
-            obj.scenePlotAxes.CameraUpVector = [0 1 0];
+            hold on;
+            set(gca, 'CameraUpVector', [0 1 0]);
             grid on;
-            xlim([position(1) - 10, position(1) + 20]);
-            ylim([position(2) - 10, position(2) + 20]);
-            zlim([position(3) - 10, position(3) + 40]);
+            xlim([position(1) - 20, position(1) + 20]);
+            ylim([position(2) - 20, position(2) + 20]);
+            zlim([position(3) - 10, position(3) + 50]);
             
             % Make sure figure background remains white after pcshow
             obj.fig.Color = 'white';
@@ -53,7 +54,7 @@ classdef VOVisualizer < handle
             plot(obj.topViewTrajectory(:,1),obj.topViewTrajectory(:,2),...
                 '-s', 'LineWidth', 1, 'MarkerSize',1,...
                 'MarkerEdgeColor','red', 'MarkerFaceColor',[1 .6 .6],...
-                'Marker', 'p');
+                'Marker', 'o');
             xlim([obj.cameraPose(4,1) - obj.topViewTrajectoryPlotRadius,...
                 obj.cameraPose(4,1) + obj.topViewTrajectoryPlotRadius]);
             ylim([obj.cameraPose(4,3) - obj.topViewTrajectoryPlotRadius,...
