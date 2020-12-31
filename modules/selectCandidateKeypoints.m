@@ -9,11 +9,12 @@ function new_kps_loc = selectCandidateKeypoints(img, curr_kps, optionalArgs)
 %   can be used as candidates for traingulation.
 arguments
    img % The image in which the new keypoints should be extracted
-   curr_kps   % Image coordinates of the new keypoints
-   optionalArgs.MaxNewKeypoints double = 50
+   curr_kps   % Image coordinates of the existing tracked and candidate keypoints
+   optionalArgs.MaxNewKeypoints double = 100
    optionalArgs.MinDistance double = 20 % The (optional) distance threshold
    optionalArgs.MinQuality double = 0.01 % Harris keypoints quality
    optionalArgs.FilterSize double = 3 % Harris detector filter size
+   optionalArgs.FractionToKeep double = 0.75 % Fraction of detected valid kps to keep
 end
 
 % Detect new keypoints
@@ -21,8 +22,7 @@ new_kps = detectHarrisFeatures(img,'MinQuality', optionalArgs.MinQuality,...
     'FilterSize', optionalArgs.FilterSize);
 
 % Compute the distance of all new keypoints from all existing keypoints
-D = pdist2(single(new_kps.Location), ...
-    single(curr_kps), 'euclidean');
+D = pdist2(single(new_kps.Location), single(curr_kps), 'euclidean');
 
 % Find all the distances smaller than the threshold
 L = D < optionalArgs.MinDistance;
@@ -31,12 +31,9 @@ L = D < optionalArgs.MinDistance;
 new_kps = new_kps(sum(L,2) == 0);
 
 % Cap the maximum number of keypoints - pick the required number uniformly
-if size(new_kps, 1) > optionalArgs.MaxNewKeypoints
-    new_kps = selectUniform(...
-        new_kps, optionalArgs.MaxNewKeypoints, size(img));
-end
+num_kps = ceil(optionalArgs.FractionToKeep * size(new_kps,1));
+new_kps = selectUniform(new_kps, num_kps, size(img));
 
 new_kps_loc = new_kps.Location;
-
 end
 
