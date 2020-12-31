@@ -52,13 +52,15 @@ else
 end
 
 % Number of frames to play VO for
-num_frames = 200;
+num_frames = 300;
 assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enough frames');
 
 % Initialize the vo pipeline
 max_temporal_recall = 20;
-vo = VisualOdometry(cameraParams, 'MaxTemporalRecall', max_temporal_recall);
+vo = VisualOdometry(cameraParams, ...
+    'MaxTemporalRecall', max_temporal_recall, ...
+    'MaxReprojectionError', 3);
 
 % Initialize the state struct
 state = initializeState(landmarks, keypoints, pose, max_temporal_recall);
