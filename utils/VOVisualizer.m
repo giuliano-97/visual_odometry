@@ -17,7 +17,7 @@ classdef VOVisualizer < handle
     methods
         function obj = VOVisualizer(optionalArgs)
             arguments
-               optionalArgs.trajectoryPlotRadius double = 15; 
+               optionalArgs.trajectoryPlotRadius double = 25; 
             end
             obj.topViewTrajectoryPlotRadius = optionalArgs.trajectoryPlotRadius;
             obj.fig = figure('Name', 'Visual Odometry');
