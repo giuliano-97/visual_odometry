@@ -52,7 +52,7 @@ else
 end
 
 % Number of frames to play VO for
-num_frames = 150;
+num_frames = 200;
 assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enough frames');
 
@@ -72,7 +72,7 @@ poses(:,:,1) = pose;
 % Initialize VO visualizer
 vov = VOVisualizer;
 vov.update(prev_img, keypoints, landmarks, pose);
-pause(1.5);
+pause(2.5);
 
 
 if ndims(prev_img) == 3
