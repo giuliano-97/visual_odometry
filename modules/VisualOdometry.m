@@ -17,7 +17,7 @@ classdef VisualOdometry
             %   Initialize the visual odometry pipeline
             arguments
                 cameraParams
-                optionalArgs.angularThreshold double = 1.5
+                optionalArgs.angularThreshold double = 1
                 optionalArgs.maxTemporalRecall uint32 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 3
@@ -60,8 +60,8 @@ classdef VisualOdometry
             % Iterate over all candidates
             for i=find(val_cand.')
                 % Updating reprojection errors of landmarks
-                [min_reproError, min_reproError_indx] = min(reproError);
-                min_reproError_indx = min_reproError_indx(1);
+                [max_reproError, max_reproError_indx] = max(reproError);
+                max_reproError_indx = max_reproError_indx(1);
                 
                 % Triangulate candidate
                 [rotMat0, transVec0] = cameraPoseToExtrinsics(...
@@ -88,11 +88,11 @@ classdef VisualOdometry
                         curr_pose) > obj.angularThreshold
 %                         && size(landmarks, 1) < obj.maxNumLandmarks
                     if size(landmarks, 1) >= obj.maxNumLandmarks...
-                            && repro_err <= min_reproError
+                            && repro_err <= max_reproError
                         
-                        landmarks(min_reproError_indx,:) = [];
-                        keypoints(min_reproError_indx,:) = [];
-                        reproError(min_reproError_indx,:) = [];
+                        landmarks(max_reproError_indx,:) = [];
+                        keypoints(max_reproError_indx,:) = [];
+                        reproError(max_reproError_indx,:) = [];
                     end
                     if size(landmarks, 1) < obj.maxNumLandmarks
                         landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
