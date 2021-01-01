@@ -57,10 +57,16 @@ classdef VOVisualizer < handle
                 '-s', 'LineWidth', 1, 'MarkerSize',1,...
                 'MarkerEdgeColor','red', 'MarkerFaceColor',[1 .6 .6],...
                 'Marker', 'o');
-            xlim([obj.cameraPose(4,1) - obj.topViewTrajectoryPlotRadius,...
-                obj.cameraPose(4,1) + obj.topViewTrajectoryPlotRadius]);
-            ylim([obj.cameraPose(4,3) - obj.topViewTrajectoryPlotRadius,...
-                obj.cameraPose(4,3) + obj.topViewTrajectoryPlotRadius]);
+            if length(obj.topViewTrajectory) > 3
+                x_minmax = minmax(obj.topViewTrajectory(:,1)');
+                z_minmax = minmax(obj.topViewTrajectory(:,2)');
+                margin_x = 0.1 * (x_minmax(2) - x_minmax(1));
+                margin_z = 0.1 * (z_minmax(2) - z_minmax(1));
+                limits_x = x_minmax + [-margin_x, margin_x];
+                limits_z = z_minmax + [-margin_z, margin_z];
+                xlim(limits_x);
+                ylim(limits_z);
+            end
             xlabel('X');
             ylabel('Z');
             grid on;
@@ -87,9 +93,13 @@ classdef VOVisualizer < handle
             obj.candidateKeypoints = candidateKeypoints;
             obj.landmarks = landmarks;
             obj.cameraPose = cameraPose;
-            obj.topViewTrajectory = [obj.topViewTrajectory;...
-                [cameraPose(4,1), cameraPose(4,3)]];
-            
+            if length(obj.topViewTrajectory) >= 20
+               obj.topViewTrajectory = [obj.topViewTrajectory(2:end,:);...
+                   cameraPose(4,1), cameraPose(4,3)];
+            else
+                obj.topViewTrajectory = [obj.topViewTrajectory;...
+                    [cameraPose(4,1), cameraPose(4,3)]];
+            end
             % Focus on figure
             figure(obj.fig);
 
