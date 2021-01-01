@@ -17,8 +17,8 @@ classdef VisualOdometry
             %   Initialize the visual odometry pipeline
             arguments
                 cameraParams
-                optionalArgs.angularThreshold double = 1.0
-                optionalArgs.maxTemporalRecall uint32 = 20
+                optionalArgs.angularThreshold double = 1.5
+                optionalArgs.maxTemporalRecall uint32 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 3
             end
@@ -27,7 +27,11 @@ classdef VisualOdometry
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
             obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
-            obj.tracker = KLTTracker();
+            obj.tracker = KLTTracker(...
+                'NumPyramidLevels', 4,...
+                'MaxBidirectionalError', 2,...
+                'BlockSize', [41 41],...
+                'MaxIterations', 50);
         end
         
         function [curr_state, tracked_keypoints] = candidateTriangulation(...

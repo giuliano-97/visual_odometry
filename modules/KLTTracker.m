@@ -8,9 +8,9 @@ classdef KLTTracker
     methods
         function obj = KLTTracker(optionalArgs)
             arguments
-                optionalArgs.NumPyramidLevels = 7;
+                optionalArgs.NumPyramidLevels = 4;
                 optionalArgs.MaxBidirectionalError = 2;
-                optionalArgs.BlockSize = [45 45];
+                optionalArgs.BlockSize = [41 41];
                 optionalArgs.MaxIterations = 50;
             end
             obj.tracker = vision.PointTracker(...
