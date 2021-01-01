@@ -86,12 +86,12 @@ while ~ok
     end
 
     % Set the final set of ouput keypoints for the first view
-    matched_points0_inliers = matched_points0(inliers_idx);
-    matched_points1_inliers = matched_points1(inliers_idx);
+    matched_points0 = matched_points0(inliers_idx);
+    matched_points1 = matched_points1(inliers_idx);
 
    % Extract relative camera pose of the second view
     [R1, t1, validPointsFraction] = relativeCameraPose(E, cameraParams,...
-        matched_points0_inliers.Location, matched_points1_inliers.Location);
+        matched_points0.Location, matched_points1.Location);
     
     % Check valid point fractions and if R1 or t1 contain nans
     if num_inliers * validPointsFraction < optionalArgs.MinNumLandmarks ...
@@ -102,9 +102,9 @@ while ~ok
     % Add views with keypoints to viewset
     vSet = imageviewset;
     vSet = addView(vSet, 1, rigid3d(eye(3), zeros(1,3)), 'Points', ...
-        matched_points0_inliers);
+        matched_points0);
     vSet = addView(vSet, 2, rigid3d(R1, t1), 'Points',...
-        matched_points1_inliers);
+        matched_points1);
     
     % Add correspondences to viewset
     vSet = addConnection(vSet, 1, 2, 'Matches', ...
@@ -131,7 +131,7 @@ end
 % Keep only valid stuff
 pose = [R1; t1];
 landmarks = landmarks(validIndex, :);
-keypoints = double(matched_points1_inliers(validIndex).Location);
+keypoints = double(matched_points1(validIndex).Location);
 reproError = reproError(validIndex, :);
 
 %% (Optionally) Visualize the 3-D scene
@@ -165,12 +165,12 @@ if optionalArgs.PlotResult == true
     
     % Display matched points
     subplot(2,2,3)
-    imshow(insertMarker(img0, matched_points0_inliers(validIndex),...
+    imshow(insertMarker(img0, matched_points0(validIndex),...
         '*', 'Color', 'red'));
     title('Image 1')
 
     subplot(2,2,4)
-    imshow(insertMarker(img1, matched_points1_inliers(validIndex),...
+    imshow(insertMarker(img1, matched_points1(validIndex),...
         '*', 'Color', 'red'));
     title('Image 2')
 

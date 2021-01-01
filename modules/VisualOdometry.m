@@ -290,6 +290,21 @@ classdef VisualOdometry
             elapsedTime = toc;
             fprintf("Camera localization elapsed time %f\n", elapsedTime);
             
+            % Pose non-linear refinement
+            intrinsics = obj.getCameraIntrinsics();
+            ViewId = uint32(1); AbsolutePose = rigid3d(R_WC, T_WC);
+            pointTracks = [];
+            for i=1:length(valid_landmarks)
+                pointTracks = [pointTracks;...
+                    pointTrack(ViewId, valid_tracked_keypoints(i,:))];
+            end
+            cameraPoses = table(ViewId, AbsolutePose);
+            [valid_landmarks, refinedPoses] =  ...
+                bundleAdjustment(valid_landmarks, pointTracks,...
+                cameraPoses, intrinsics);
+            R_WC = refinedPoses.AbsolutePose.Rotation;
+            T_WC = refinedPoses.AbsolutePose.Translation;
+            
 %             % Verify which landmarks are still in front of the camera (ifc)
 %             [orientation, location] = cameraPoseToExtrinsics(R_WC, T_WC);
 %             camMat = cameraMatrix(obj.cameraParams, orientation, location);

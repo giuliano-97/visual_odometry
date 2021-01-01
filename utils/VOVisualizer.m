@@ -42,8 +42,8 @@ classdef VOVisualizer < handle
             if length(obj.topViewTrajectory) > 3
                 x_min = min(obj.topViewTrajectory(:,1));
                 x_max = max(obj.topViewTrajectory(:,1));
-                z_min = min(obj.topViewTrajectory(:,2));
-                z_max = max(obj.topViewTrajectory(:,2));
+                z_min = min(-5, min(obj.topViewTrajectory(:,2)));
+                z_max = max(5, max(obj.topViewTrajectory(:,2)));
                 margin_x = 0.1 * (x_max - x_min);
                 margin_z = 0.1 * (z_max - z_min);
                 limits_x = [x_min - margin_x, x_max + margin_x];
