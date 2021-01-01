@@ -10,7 +10,6 @@ function new_kps_loc = selectCandidateKeypoints(img, curr_kps, optionalArgs)
 arguments
    img % The image in which the new keypoints should be extracted
    curr_kps   % Image coordinates of the existing tracked and candidate keypoints
-   optionalArgs.MaxNewKeypoints double = 100
    optionalArgs.MinDistance double = 20 % The (optional) distance threshold
    optionalArgs.MinQuality double = 0.01 % Harris keypoints quality
    optionalArgs.FilterSize double = 3 % Harris detector filter size
@@ -18,8 +17,6 @@ arguments
 end
 
 % Detect new keypoints
-% new_kps = detectHarrisFeatures(img,'MinQuality', optionalArgs.MinQuality,...
-%     'FilterSize', optionalArgs.FilterSize);
 new_kps = detectMinEigenFeatures(img,'MinQuality', optionalArgs.MinQuality);
 
 % Compute the distance of all new keypoints from all existing keypoints

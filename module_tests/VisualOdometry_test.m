@@ -26,7 +26,7 @@ cameraParams = data_loader.camParams;
 
 if test_bootstrap
     % Load bootstrap images
-    bootstrap_frames = [0,1];
+    bootstrap_frames = [20,21];
     img0 = data_loader.retrieveFrame(bootstrap_frames(1));
     img1 = data_loader.retrieveFrame(bootstrap_frames(2));
     
@@ -62,11 +62,11 @@ max_temporal_recall = 10;
 [H,W] = size(prev_img);
 vo = VisualOdometry(cameraParams, [H,W],...
     'MaxTemporalRecall', max_temporal_recall, ...
-    'MaxNumLandmarks', 800, ...
-    'MaxReprojectionError', 3);
+    'MaxNumLandmarks', 500, ...
+    'MaxReprojectionError', 2);
 
 % Initialize the state struct
-state = initializeState(landmarks, keypoints, reproError, pose, 0);
+state = initializeState(landmarks, keypoints, reproError, pose, 1);
 
 % Initialize camera poses array
 pose = [eye(3); zeros(1,3)];

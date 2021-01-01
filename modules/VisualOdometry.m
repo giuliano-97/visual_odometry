@@ -13,13 +13,13 @@ classdef VisualOdometry
     end
      
     methods        
-        function obj = VisualOdometry(cameraParams, optionalArgs)
+        function obj = VisualOdometry(cameraParams, imageSize, optionalArgs)
             %VISUALODOMETRY Constructor
             %   Initialize the visual odometry pipeline
             arguments
                 cameraParams
                 imageSize
-                optionalArgs.angularThreshold double = 1
+                optionalArgs.angularThreshold double = 1.0
                 optionalArgs.maxTemporalRecall uint32 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 3
@@ -279,7 +279,6 @@ classdef VisualOdometry
                 curr_img, prev_state.keypoints);
             valid_tracked_keypoints = tracked_keypoints(val_idx,:);
             valid_landmarks = prev_state.landmarks(val_idx, :);
-            valid_reproErr = prev_state.reproError(val_idx);
             
             % Estimate the pose in world coordinates
             tic
@@ -296,21 +295,24 @@ classdef VisualOdometry
 %             camMat = cameraMatrix(obj.cameraParams, orientation, location);
 %             ifc_idx = isInFrontOfCamera(camMat, valid_landmarks);
             
-            % Evaluate the reprojection error of the landmarks
-            repro_err = obj.computeReprojectionError(valid_landmarks,...
-                valid_tracked_keypoints, [R_WC; T_WC]);
+            reproErr = obj.computeReprojectionError(...
+                valid_landmarks, valid_tracked_keypoints, ...
+                [R_WC; T_WC]);
             
-            % Discard landmarks which are behind the camera
-            curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
-            curr_state.landmarks = valid_landmarks(inl_idx,:);
-            curr_state.reproError = valid_reproErr(inl_idx);
+            val_idx = reproErr < obj.maxReprojectionError;
+
+            % Update keypoints and landmarks (keep only inliers)
+%             curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
+%             curr_state.landmarks = valid_landmarks(inl_idx,:);
             
-            % If ignore frame if pose estimation failed
-%             if pose_status > 0
-%                 curr_pose = [eye(3), zeros(1,3)];
-%                 curr_state = prev_state;
-%                 return
-%             end
+            curr_state.keypoints = valid_tracked_keypoints(val_idx,:);
+            curr_state.landmarks = valid_landmarks(val_idx,:);
+            
+            % Update the reprojection error of the tracked landmarks
+%             curr_state.reproError = obj.computeReprojectionError(...
+%                 curr_state.landmarks, curr_state.keypoints, ...
+%                 [R_WC; T_WC]);
+            curr_state.reproError = reproErr(val_idx);
             
             % Update pose
             curr_pose = [R_WC;T_WC];
@@ -327,11 +329,10 @@ classdef VisualOdometry
             % are being tracked is smaller than the allowed maximum
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
-                'MaxNewKeypoints', 200,...
                 'MinQuality', 0.001, ...
-                'FilterSize', 3, ...
-                'MinDistance', 3,...
-                'CandidatesToKeep', 125);
+                'FilterSize', 5, ...
+                'MinDistance',7,...
+                'CandidatesToKeep', 100);
 
             % Appending candidates to keypoints to track
             curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
