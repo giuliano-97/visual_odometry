@@ -13,12 +13,14 @@ classdef VOVisualizer < handle
         image
         keypoints
         candidateKeypoints
+        numPosesToShow
     end
     
     methods
         function obj = VOVisualizer(optionalArgs)
             arguments
-               optionalArgs.trajectoryPlotRadius double = 15; 
+               optionalArgs.trajectoryPlotRadius double = 15
+               optionalArgs.numPosesToShow uint32 = 20
             end
             obj.topViewTrajectoryPlotRadius = optionalArgs.trajectoryPlotRadius;
             obj.fig = figure('Name', 'Visual Odometry');
@@ -27,6 +29,7 @@ classdef VOVisualizer < handle
             obj.topViewTrajectory = [];
             obj.keypoints = [];
             obj.candidateKeypoints = [];
+            obj.numPosesToShow = optionalArgs.numPosesToShow;
         end
         
         function [] = plotScene(obj)
@@ -54,8 +57,8 @@ classdef VOVisualizer < handle
         function [] = plotTopViewTrajectory(obj)
             subplot(2,2,2);
             plot(obj.topViewTrajectory(:,1),obj.topViewTrajectory(:,2),...
-                '-s', 'LineWidth', 1, 'MarkerSize',1,...
-                'MarkerEdgeColor','red', 'MarkerFaceColor',[1 .6 .6],...
+                '-s', 'LineWidth', 1, 'MarkerSize', 2,...
+                'MarkerEdgeColor', 'red', 'MarkerFaceColor',[1 .6 .6],...
                 'Marker', 'o');
             if length(obj.topViewTrajectory) > 3
                 x_minmax = minmax(obj.topViewTrajectory(:,1)');
@@ -93,7 +96,7 @@ classdef VOVisualizer < handle
             obj.candidateKeypoints = candidateKeypoints;
             obj.landmarks = landmarks;
             obj.cameraPose = cameraPose;
-            if length(obj.topViewTrajectory) >= 20
+            if length(obj.topViewTrajectory) >= obj.numPosesToShow
                obj.topViewTrajectory = [obj.topViewTrajectory(2:end,:);...
                    cameraPose(4,1), cameraPose(4,3)];
             else
