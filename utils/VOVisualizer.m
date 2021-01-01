@@ -19,8 +19,8 @@ classdef VOVisualizer < handle
     methods
         function obj = VOVisualizer(optionalArgs)
             arguments
-               optionalArgs.trajectoryPlotRadius double = 15
-               optionalArgs.numPosesToShow uint32 = 20
+                optionalArgs.trajectoryPlotRadius double = 15
+                optionalArgs.numPosesToShow uint32 = 20
             end
             obj.topViewTrajectoryPlotRadius = optionalArgs.trajectoryPlotRadius;
             obj.fig = figure('Name', 'Visual Odometry');
@@ -32,30 +32,9 @@ classdef VOVisualizer < handle
             obj.numPosesToShow = optionalArgs.numPosesToShow;
         end
         
-        function [] = plotScene(obj)
+        function [] = plotTopViewFullTrajectory(obj)
             obj.scenePlotAxes = subplot(2,2,1);
-            % Plot the current point cloud
-            hold off
-            plot3(obj.landmarks(:,1), obj.landmarks(:,2), obj.landmarks(:,3), '*'); 
-            hold on;
-            % Plot the current camera pose
-            orientation = obj.cameraPose(1:3,1:3);
-            position = obj.cameraPose(4,:);
-            absPose = rigid3d(orientation, position);
-            plotCamera('AbsolutePose', absPose, 'Size', 1);
-            hold on;
-            set(gca, 'CameraUpVector', [0 1 0]);
-            grid on;
-            xlim([position(1) - 20, position(1) + 20]);
-            ylim([position(2) - 20, position(2) + 20]);
-            zlim([position(3) - 10, position(3) + 50]);
-            
-            % Make sure figure background remains white after pcshow
-            obj.fig.Color = 'white';
-        end
-        
-        function [] = plotTopViewTrajectory(obj)
-            subplot(2,2,2);
+            % Plot the whole trajectory
             plot(obj.topViewTrajectory(:,1),obj.topViewTrajectory(:,2),...
                 '-s', 'LineWidth', 1, 'MarkerSize', 2,...
                 'MarkerEdgeColor', 'red', 'MarkerFaceColor',[1 .6 .6],...
@@ -75,6 +54,35 @@ classdef VOVisualizer < handle
             grid on;
         end
         
+        function [] = plotTopViewScene(obj)
+            subplot(2,2,2);
+            hold off;
+            % Plot last N poses
+            num_poses = length(obj.topViewTrajectory);
+            if num_poses > obj.numPosesToShow
+                poses_idxs = (num_poses - obj.numPosesToShow):num_poses;
+                plot(obj.topViewTrajectory(poses_idxs,1),...
+                    obj.topViewTrajectory(poses_idxs,2),...
+                    '-s', 'LineWidth', 1, 'MarkerSize', 3,...
+                    'MarkerEdgeColor', 'red', 'MarkerFaceColor',[1 .6 .6],...
+                    'Marker', 'o');
+            else
+                plot(obj.topViewTrajectory(:,1),obj.topViewTrajectory(:,2),...
+                    '-s', 'LineWidth', 1, 'MarkerSize', 3,...
+                    'MarkerEdgeColor', 'red', 'MarkerFaceColor',[1 .6 .6],...
+                    'Marker', 'o');
+            end
+            hold on;
+            % Plot the landmarks
+            plot(obj.landmarks(:,1), obj.landmarks(:,3), ...
+                'LineStyle', 'none', 'Marker', 'diamond', ...
+                'MarkerSize', 2, 'MarkerEdgeColor', 'black', ...
+                'MarkerFaceColor', 'black');
+            xlabel('X');
+            ylabel('Z');
+            grid on;
+        end
+        
         function  [] = plotKeypoints(obj, image)
             subplot(2,2,[3,4]);
             if ~isempty(obj.keypoints)
@@ -83,11 +91,11 @@ classdef VOVisualizer < handle
             end
             if ~isempty(obj.candidateKeypoints)
                 image = insertMarker(image, obj.candidateKeypoints, 'x',...
-                   'Size', 6, 'Color', 'red');
+                    'Size', 6, 'Color', 'red');
             end
             imshow(image);
         end
-
+        
         function [] = update(obj, image, keypoints, ...,
                 candidateKeypoints, landmarks, cameraPose)
             % Update data
@@ -96,23 +104,16 @@ classdef VOVisualizer < handle
             obj.candidateKeypoints = candidateKeypoints;
             obj.landmarks = landmarks;
             obj.cameraPose = cameraPose;
-            if length(obj.topViewTrajectory) >= obj.numPosesToShow
-               obj.topViewTrajectory = [obj.topViewTrajectory(2:end,:);...
-                   cameraPose(4,1), cameraPose(4,3)];
-            else
-                obj.topViewTrajectory = [obj.topViewTrajectory;...
-                    [cameraPose(4,1), cameraPose(4,3)]];
-            end
+            obj.topViewTrajectory = [obj.topViewTrajectory;...
+                [cameraPose(4,1), cameraPose(4,3)]];
             % Focus on figure
             figure(obj.fig);
-
+            
             % Plot
-            obj.plotScene();
-            obj.plotTopViewTrajectory();
+            obj.plotTopViewScene();
+            obj.plotTopViewFullTrajectory();
             obj.plotKeypoints(image);
         end
-        
-        
     end
 end
 
