@@ -40,8 +40,8 @@ classdef VOVisualizer < handle
                 'MarkerEdgeColor', 'red', 'MarkerFaceColor',[1 .6 .6],...
                 'Marker', 'o');
             if length(obj.topViewTrajectory) > 3
-                x_min = min(obj.topViewTrajectory(:,1));
-                x_max = max(obj.topViewTrajectory(:,1));
+                x_min = min(-5, min(obj.topViewTrajectory(:,1)));
+                x_max = max(5, max(obj.topViewTrajectory(:,1)));
                 z_min = min(-5, min(obj.topViewTrajectory(:,2)));
                 z_max = max(5, max(obj.topViewTrajectory(:,2)));
                 margin_x = 0.1 * (x_max - x_min);
@@ -51,7 +51,8 @@ classdef VOVisualizer < handle
                 xlim(limits_x);
                 ylim(limits_z);
             else
-               ylim([0, 5]); 
+               ylim([-5, 5]); 
+               xlim([-5, 5]);
             end
             xlabel('X');
             ylabel('Z');
