@@ -12,6 +12,7 @@ classdef VOVisualizer < handle
         topViewTrajectoryPlotRadius
         image
         keypoints
+        candidateKeypoints
     end
     
     methods
@@ -25,6 +26,7 @@ classdef VOVisualizer < handle
             obj.cameraPose = [eye(3); zeros(1,3)];
             obj.topViewTrajectory = [];
             obj.keypoints = [];
+            obj.candidateKeypoints = [];
         end
         
         function [] = plotScene(obj)
@@ -64,16 +66,25 @@ classdef VOVisualizer < handle
             grid on;
         end
         
-        function  [] = plotKeypoints(obj)
+        function  [] = plotKeypoints(obj, image)
             subplot(2,2,[3,4]);
-            imshow(insertMarker(obj.image, obj.keypoints,...
-                'o', 'Color', 'red'));
+            if ~isempty(obj.keypoints)
+                image = insertMarker(image, obj.keypoints, 'x',...
+                    'Size', 6, 'Color', 'green');
+            end
+            if ~isempty(obj.candidateKeypoints)
+                image = insertMarker(image, obj.candidateKeypoints, 'x',...
+                   'Size', 6, 'Color', 'red');
+            end
+            imshow(image);
         end
 
-        function [] = update(obj, image, keypoints, landmarks, cameraPose)
+        function [] = update(obj, image, keypoints, ...,
+                candidateKeypoints, landmarks, cameraPose)
             % Update data
             obj.image = image;
             obj.keypoints = keypoints;
+            obj.candidateKeypoints = candidateKeypoints;
             obj.landmarks = landmarks;
             obj.cameraPose = cameraPose;
             obj.topViewTrajectory = [obj.topViewTrajectory;...
@@ -85,7 +96,7 @@ classdef VOVisualizer < handle
             % Plot
             obj.plotScene();
             obj.plotTopViewTrajectory();
-            obj.plotKeypoints();
+            obj.plotKeypoints(image);
         end
         
         

@@ -7,7 +7,7 @@ rng(1023);
 % Load data
 test_bootstrap = true;
 
-dataset_type = 0; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+dataset_type = 2; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
 
 % Pick the correspoinding data loader
 if dataset_type ==0
@@ -38,7 +38,7 @@ if test_bootstrap
         'MinNumLandmarks', 200,...
         'MaxDepth', 200, ...
         'FeatureMatchingMode', 'KLT', ...
-        'FilterSize', 3, 'MinQuality', 0.01);
+        'FilterSize', 5, 'MinQuality', 0.001);
     prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     data_loader.reset(bootstrap_frames(2)+1);
 else
@@ -60,7 +60,8 @@ assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
 max_temporal_recall = 20;
 vo = VisualOdometry(cameraParams, ...
     'MaxTemporalRecall', max_temporal_recall, ...
-    'MaxReprojectionError', 3);
+    'MaxNumLandmarks', 800, ...
+    'MaxReprojectionError', 4);
 
 % Initialize the state struct
 state = initializeState(landmarks, keypoints, pose, max_temporal_recall);
@@ -74,7 +75,7 @@ poses(:,:,1) = pose;
 %% Test continuous operation
 % Initialize VO visualizer
 vov = VOVisualizer;
-vov.update(prev_img, keypoints, landmarks, pose);
+vov.update(prev_img, keypoints, [], landmarks, pose);
 pause(2.5);
 
 
@@ -92,7 +93,8 @@ for i = data_loader.index : data_loader.index+num_frames-1
         vo.processFrame(prev_img, curr_img, state);
     
     % Update the visualization
-    vov.update(curr_img, state.keypoints, state.landmarks, pose);
+    vov.update(curr_img, state.keypoints, state.candidate_keypoints, ...
+        state.landmarks, pose);
 
     poses(:,:,i+1) = pose;
     prev_img = curr_img;
