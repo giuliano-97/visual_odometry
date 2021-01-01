@@ -1,4 +1,4 @@
-function [keypoints, landmarks, pose] = bootstrap(img0, img1, cameraParams,...
+function [keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, cameraParams,...
     optionalArgs)
 %% BOOTSTRAP Creates initial set of 2D/3D correspondences
 %   [keypoints, landmarks, pose] = bootstrap(img0, img1, cameraParams)
@@ -117,7 +117,7 @@ while ~ok
     cameraPoses = poses(vSet);
     
     % Triangulate points
-    [landmarks, ~, validIndex] = triangulateMultiview(tracks, ...
+    [landmarks, reproError, validIndex] = triangulateMultiview(tracks, ...
         cameraPoses, intrinsics);
     
     % Keep points in the required view frustum
@@ -132,6 +132,7 @@ end
 pose = [R1; t1];
 landmarks = landmarks(validIndex, :);
 keypoints = double(matched_points1_inliers(validIndex).Location);
+reproError = reproError(validIndex, :);
 
 %% (Optionally) Visualize the 3-D scene
 

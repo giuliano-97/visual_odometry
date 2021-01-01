@@ -34,11 +34,11 @@ if test_bootstrap
         img0 = rgb2gray(img0);
         img1 = rgb2gray(img1);
     end
-    [keypoints, landmarks, pose] = bootstrap(img0, img1, cameraParams, ...
+    [keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, cameraParams, ...
         'MinNumLandmarks', 200,...
         'MaxDepth', 200, ...
         'FeatureMatchingMode', 'KLT', ...
-        'FilterSize', 5, 'MinQuality', 0.001);
+        'FilterSize', 3, 'MinQuality', 0.005);
     prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     data_loader.reset(bootstrap_frames(2)+1);
 else
@@ -46,6 +46,7 @@ else
         'Test without bootstrap only available if using Kitti tutorial dataset');
     keypoints = data_loader.initial_keypoints;
     landmarks = data_loader.initial_landmarks;
+    reproError = zeros(size(landmarks,1), 1);
     prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     pose = [eye(3); zeros(1,3)];
     data_loader.reset(bootstrap_frames(2)+1);
@@ -57,14 +58,14 @@ assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enough frames');
 
 % Initialize the vo pipeline
-max_temporal_recall = 20;
+max_temporal_recall = 10;
 vo = VisualOdometry(cameraParams, ...
     'MaxTemporalRecall', max_temporal_recall, ...
     'MaxNumLandmarks', 800, ...
     'MaxReprojectionError', 4);
 
 % Initialize the state struct
-state = initializeState(landmarks, keypoints, pose, max_temporal_recall);
+state = initializeState(landmarks, keypoints, reproError, pose, 0);
 
 % Initialize camera poses array
 pose = [eye(3); zeros(1,3)];

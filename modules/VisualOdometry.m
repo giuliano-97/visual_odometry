@@ -39,6 +39,7 @@ classdef VisualOdometry
             
             landmarks = curr_state.landmarks;
             keypoints = curr_state.keypoints;
+            reproError = curr_state.reproError;
 
             % Track candidates from the previous frame
             [candidate_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
@@ -58,6 +59,10 @@ classdef VisualOdometry
             
             % Iterate over all candidates
             for i=find(val_cand.')
+                % Updating reprojection errors of landmarks
+                [min_reproError, min_reproError_indx] = min(reproError);
+                min_reproError_indx = min_reproError_indx(1);
+                
                 % Triangulate candidate
                 [rotMat0, transVec0] = cameraPoseToExtrinsics(...
                     prev_state.candidate_first_poses{i}(1:3,:),...
@@ -82,12 +87,18 @@ classdef VisualOdometry
                 if calculateAngleDeg(cand_landmark, prev_state.candidate_first_poses{i},...
                         curr_pose) > obj.angularThreshold
 %                         && size(landmarks, 1) < obj.maxNumLandmarks
-                    if size(landmarks, 1) >= obj.maxNumLandmarks
-                        landmarks = landmarks(2:end,:);
-                        keypoints = keypoints(2:end,:);
+                    if size(landmarks, 1) >= obj.maxNumLandmarks...
+                            && repro_err <= min_reproError
+                        
+                        landmarks(min_reproError_indx,:) = [];
+                        keypoints(min_reproError_indx,:) = [];
+                        reproError(min_reproError_indx,:) = [];
                     end
-                    landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
-                    keypoints = [keypoints; candidate_tracked(i,:)];
+                    if size(landmarks, 1) < obj.maxNumLandmarks
+                        landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
+                        keypoints = [keypoints; candidate_tracked(i,:)];
+                        reproError = [reproError; repro_err];
+                    end
                 else
                     % Discard candidate if has been stored for too long
                     if prev_state.candidate_time_indxs(i) > -obj.maxTemporalRecall
@@ -106,6 +117,7 @@ classdef VisualOdometry
 
             curr_state.landmarks = landmarks;
             curr_state.keypoints = keypoints;
+            curr_state.reproError = reproError;
             curr_state.candidate_keypoints = candidate_keypoints;
             curr_state.candidate_first_keypoints = candidate_first_keypoints;
             curr_state.candidate_first_poses = candidate_first_poses;
@@ -245,6 +257,7 @@ classdef VisualOdometry
                 curr_img, prev_state.keypoints);
             valid_tracked_keypoints = tracked_keypoints(val_idx,:);
             valid_landmarks = prev_state.landmarks(val_idx, :);
+            valid_reproErr = prev_state.reproError(val_idx);
             
             % Estimate the pose in world coordinates
             tic
@@ -264,6 +277,7 @@ classdef VisualOdometry
             % Discard landmarks which are behind the camera
             curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
             curr_state.landmarks = valid_landmarks(inl_idx,:);
+            curr_state.reproError = valid_reproErr(inl_idx);
             
             % If ignore frame if pose estimation failed
 %             if pose_status > 0
@@ -288,10 +302,10 @@ classdef VisualOdometry
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MaxNewKeypoints', 200,...
-                'MinQuality', 0.005, ...
-                'FilterSize', 5, ...
-                'MinDistance', 10,...
-                'FractionToKeep', 0.75);
+                'MinQuality', 0.001, ...
+                'FilterSize', 3, ...
+                'MinDistance', 3,...
+                'CandidatesToKeep', 125);
 
             % Appending candidates to keypoints to track
             curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
