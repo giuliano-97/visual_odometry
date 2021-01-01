@@ -19,17 +19,18 @@ cameraParams = cameraParameters('IntrinsicMatrix', K');
 %% Detect and track keypoints
 
 % Detect keypoints in both images
-points = detectHarrisFeatures(img1);
+% points = detectHarrisFeatures(img1, 'MinQuality', 0.0008, 'FilterSize', 3);
+% points = detectFASTFeatures(img1, 'MinQuality', 0.001);
+points = detectMinEigenFeatures(img1, 'MinQuality', 0.005);
 
 % Track keypoints in the second image with KLT
 tracker = KLTTracker();
 [points_tracked, validity, ~] = tracker.track(img1, img2, points.Location);
 
 % Select new non-overlapping keypoints
-tic
 new_points = selectCandidateKeypoints(img2, points_tracked(validity,:), ...
-    'MinDistance', 20, 'MinQuality', 0.001, 'MaxNewKeypoints', 100);
-toc
+    'MinDistance', 5, 'MinQuality', 0.0005, 'MaxNewKeypoints', 100, ...,
+    'FilterSize', 5, 'FractionToKeep', 1.0);
 
 %% Plot the results
 figure(1);
