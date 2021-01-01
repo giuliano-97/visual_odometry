@@ -4,6 +4,7 @@ classdef VisualOdometry
     properties
         % Constant params
         cameraParams
+        imageSize
         angularThreshold
         maxTemporalRecall
         maxNumLandmarks
@@ -12,17 +13,19 @@ classdef VisualOdometry
     end
      
     methods        
-        function obj = VisualOdometry(cameraParams, optionalArgs)
+        function obj = VisualOdometry(cameraParams, imageSize, optionalArgs)
             %VISUALODOMETRY Constructor
             %   Initialize the visual odometry pipeline
             arguments
                 cameraParams
+                imageSize
                 optionalArgs.angularThreshold double = 1.5
                 optionalArgs.maxTemporalRecall uint32 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 3
             end
             obj.cameraParams = cameraParams;
+            obj.imageSize = imageSize;
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
             obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
@@ -34,8 +37,35 @@ classdef VisualOdometry
                 'MaxIterations', 50);
         end
         
+        function intrinsics = getCameraIntrinsics(obj)
+                    % Build camera intrinsics
+            K = obj.cameraParams.IntrinsicMatrix;
+            focalLength = [K(1,1), K(2,2)];
+            principalPoint = [K(3,1), K(3,2)];
+            intrinsics = cameraIntrinsics(focalLength, principalPoint, obj.imageSize);
+        end
+        
+        function err = computeReprojectionError(obj, landmarks, keypoints, cameraPose)
+            % TODO: add sanity check on the dimensions of input arrays
+            
+            % Compute camera extrinsics and intrinsics
+            [rotMat, transVec] = cameraPoseToExtrinsics(cameraPose(1:3,1:3),...
+                cameraPose(4,:));
+            intrinsics = obj.getCameraIntrinsics();
+            % Reproject landmarks
+            keypoints_reprojected = worldToImage(intrinsics, rotMat, transVec,...
+                landmarks);
+            % Compute reprojection error
+            diff = keypoints - keypoints_reprojected;
+            err = vecnorm(diff', 2)';
+        end
+        
         function [curr_state, tracked_keypoints] = candidateTriangulation(...
                 obj, prev_img, prev_state, curr_img, curr_state, curr_pose)
+            
+            if isempty(obj.imageSize)
+               obj.imageSize = size(prev_img); 
+            end
             
             landmarks = curr_state.landmarks;
             keypoints = curr_state.keypoints;
@@ -146,11 +176,7 @@ classdef VisualOdometry
             tracked_keypoints = candidates_tracked(val_cand,:);
             
             % Build camera intrinsics
-            K = obj.cameraParams.IntrinsicMatrix;
-            focalLength = [K(1,1), K(2,2)];
-            principalPoint = [K(3,1), K(3,2)];
-            imageSize = size(prev_img);
-            intrinsics = cameraIntrinsics(focalLength, principalPoint, imageSize);
+            intrinsics = obj.getCameraIntrinsics();
             
             % Create new empty viewset
             vSet = imageviewset;
@@ -264,7 +290,7 @@ classdef VisualOdometry
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
                 double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
-                'MaxNumTrials', 5000, 'Confidence', 99, ...
+                'MaxNumTrials', 8000, 'Confidence', 99, ...
                 'MaxReprojectionError', 2);
             elapsedTime = toc;
             fprintf("Camera localization elapsed time %f\n", elapsedTime);
@@ -273,6 +299,10 @@ classdef VisualOdometry
 %             [orientation, location] = cameraPoseToExtrinsics(R_WC, T_WC);
 %             camMat = cameraMatrix(obj.cameraParams, orientation, location);
 %             ifc_idx = isInFrontOfCamera(camMat, valid_landmarks);
+            
+            % Evaluate the reprojection error of the landmarks
+            repro_err = obj.computeReprojectionError(valid_landmarks,...
+                valid_tracked_keypoints, [R_WC; T_WC]);
             
             % Discard landmarks which are behind the camera
             curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
