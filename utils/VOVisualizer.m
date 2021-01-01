@@ -56,6 +56,12 @@ classdef VOVisualizer < handle
             xlabel('X');
             ylabel('Z');
             grid on;
+            xlim([position(1) - 10, position(1) + 20]);
+            ylim([position(2) - 10, position(2) + 20]);
+            zlim([position(3) - 10, position(3) + 40]);
+            
+            % Make sure figure background remains white after pcshow
+            obj.fig.Color = 'white';
         end
         
         function [] = plotTopViewScene(obj)
@@ -110,6 +116,7 @@ classdef VOVisualizer < handle
             obj.cameraPose = cameraPose;
             obj.topViewTrajectory = [obj.topViewTrajectory;...
                 [cameraPose(4,1), cameraPose(4,3)]];
+            
             % Focus on figure
             figure(obj.fig);
             
@@ -118,6 +125,8 @@ classdef VOVisualizer < handle
             obj.plotTopViewFullTrajectory();
             obj.plotKeypoints(image);
         end
+        
+        
     end
 end
 
