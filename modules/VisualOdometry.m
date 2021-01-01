@@ -19,7 +19,7 @@ classdef VisualOdometry
                 cameraParams
                 optionalArgs.angularThreshold double = 1.0
                 optionalArgs.maxTemporalRecall uint32 = 20
-                optionalArgs.maxNumLandmarks uint32 = 700
+                optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 3
             end
             obj.cameraParams = cameraParams;
@@ -31,6 +31,84 @@ classdef VisualOdometry
         end
         
         function [curr_state, tracked_keypoints] = candidateTriangulation(...
+                obj, prev_img, prev_state, curr_img, curr_state, curr_pose)
+            
+            landmarks = curr_state.landmarks;
+            keypoints = curr_state.keypoints;
+
+            % Track candidates from the previous frame
+            [candidate_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
+                curr_img, prev_state.candidate_keypoints);
+            tracked_keypoints = candidate_tracked(val_cand,:);
+
+            candidate_keypoints = double.empty(0,2);
+            candidate_first_keypoints = double.empty(0,2);
+            candidate_first_poses = [{}];
+            candidate_time_indxs = [];
+
+            % Build the camera matrix for the current view
+            [rotMat1, transVec1] = cameraPoseToExtrinsics(...
+                    curr_pose(1:3,:),...
+                    curr_pose(end,:));
+            cam_mat1 = cameraMatrix(obj.cameraParams, rotMat1, transVec1);
+            
+            % Iterate over all candidates
+            for i=find(val_cand.')
+                % Triangulate candidate
+                [rotMat0, transVec0] = cameraPoseToExtrinsics(...
+                    prev_state.candidate_first_poses{i}(1:3,:),...
+                    prev_state.candidate_first_poses{i}(end,:));
+                cam_mat0 = cameraMatrix(obj.cameraParams, rotMat0, transVec0);
+                [cand_landmark, repro_err, is_valid] = triangulate(...,
+                    prev_state.candidate_first_keypoints(i,:),...
+                    candidate_tracked(i,:),...
+                    cam_mat0,...
+                    cam_mat1);
+
+                % Keep only valid landmarks i.e. discard the ones which have
+                % negative depth, are too far away, or whose reprojection error
+                % is higher than the required threshold
+                is_valid = is_valid & repro_err <= obj.maxReprojectionError;
+
+                % Ignore if point behind camera
+                if ~is_valid
+                    continue
+                end
+                % Add landmarks if complies baseline threshold
+                if calculateAngleDeg(cand_landmark, prev_state.candidate_first_poses{i},...
+                        curr_pose) > obj.angularThreshold
+%                         && size(landmarks, 1) < obj.maxNumLandmarks
+                    if size(landmarks, 1) >= obj.maxNumLandmarks
+                        landmarks = landmarks(2:end,:);
+                        keypoints = keypoints(2:end,:);
+                    end
+                    landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
+                    keypoints = [keypoints; candidate_tracked(i,:)];
+                else
+                    % Discard candidate if has been stored for too long
+                    if prev_state.candidate_time_indxs(i) > -obj.maxTemporalRecall
+                        candidate_keypoints = [candidate_keypoints;...
+                            candidate_tracked(i,:)];
+                        candidate_first_keypoints = [candidate_first_keypoints;...
+                            prev_state.candidate_first_keypoints(i,:)];
+                        candidate_first_poses = [candidate_first_poses,...
+                            prev_state.candidate_first_poses{i}];
+                        candidate_time_indxs = [candidate_time_indxs, ...
+                            prev_state.candidate_time_indxs(i)-1];
+                    end
+                end
+
+            end
+
+            curr_state.landmarks = landmarks;
+            curr_state.keypoints = keypoints;
+            curr_state.candidate_keypoints = candidate_keypoints;
+            curr_state.candidate_first_keypoints = candidate_first_keypoints;
+            curr_state.candidate_first_poses = candidate_first_poses;
+            curr_state.candidate_time_indxs = candidate_time_indxs;            
+        end
+            
+        function [curr_state, tracked_keypoints] = candidateTriangulationV2(...
                 obj, prev_img, prev_state, curr_img, curr_state, curr_pose)
             arguments
                 obj
@@ -162,19 +240,27 @@ classdef VisualOdometry
             [tracked_keypoints, val_idx, ~] = obj.tracker.track(prev_img,...
                 curr_img, prev_state.keypoints);
             valid_tracked_keypoints = tracked_keypoints(val_idx,:);
-            valid_landmarks = prev_state.landmarks(val_idx,:);
+            valid_landmarks = prev_state.landmarks(val_idx, :);
             
             % Estimate the pose in world coordinates
+            tic
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
                 double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
                 'MaxNumTrials', 5000, 'Confidence', 99, ...
-                'MaxReprojectionError', 1);
+                'MaxReprojectionError', 2);
+            elapsedTime = toc;
+            fprintf("Camera localization elapsed time %f\n", elapsedTime);
             
-            % Keep only RANSAC inliers
+%             % Verify which landmarks are still in front of the camera (ifc)
+%             [orientation, location] = cameraPoseToExtrinsics(R_WC, T_WC);
+%             camMat = cameraMatrix(obj.cameraParams, orientation, location);
+%             ifc_idx = isInFrontOfCamera(camMat, valid_landmarks);
+            
+            % Discard landmarks which are behind the camera
             curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
             curr_state.landmarks = valid_landmarks(inl_idx,:);
-                        
+            
             % If ignore frame if pose estimation failed
 %             if pose_status > 0
 %                 curr_pose = [eye(3), zeros(1,3)];
@@ -186,17 +272,20 @@ classdef VisualOdometry
             curr_pose = [R_WC;T_WC];
             
             %% Triangulate new landmarks
+            tic
             [curr_state, tracked_keypoints] = obj.candidateTriangulation(...
                 prev_img, prev_state, curr_img, curr_state, curr_pose);
+            elapsedTime = toc;
+            fprintf("Candidate triangulation elapsed time %f\n", elapsedTime);
             
             %% Select new keypoints to track
             % Only select new keypoints if the number of landmarks which
             % are being tracked is smaller than the allowed maximum
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
-                'MaxNewKeypoints', 300,...
-                'MinQuality', 0.001, ...
-                'FilterSize', 3, ...
+                'MaxNewKeypoints', 200,...
+                'MinQuality', 0.005, ...
+                'FilterSize', 5, ...
                 'MinDistance', 10,...
                 'FractionToKeep', 0.75);
 
