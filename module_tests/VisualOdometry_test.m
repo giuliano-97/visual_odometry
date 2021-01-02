@@ -7,7 +7,7 @@ rng(1023);
 % Load data
 test_bootstrap = true;
 
-dataset_type = 0; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+dataset_type = 2; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
 
 % Pick the correspoinding data loader
 if dataset_type ==0
@@ -19,7 +19,7 @@ elseif dataset_type == 2
 elseif dataset_type == 3
     data_loader = dataLoaderKittiTutorial('./data/continuous_op_test');
 else
-    assert(false, "Invalid dataset type choose: 0, 1,2,3");
+    assert(false, "Invalid dataset type choose: 0,1,2,3");
 end
 
 cameraParams = data_loader.camParams;
@@ -38,7 +38,7 @@ if test_bootstrap
         'MinNumLandmarks', 200,...
         'MaxDepth', 200, ...
         'FeatureMatchingMode', 'KLT', ...
-        'FilterSize', 3, 'MinQuality', 0.005);
+        'FilterSize', 5, 'MinQuality', 0.001);
     prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     data_loader.reset(bootstrap_frames(2)+1);
 else
@@ -58,12 +58,13 @@ assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enough frames');
 
 % Initialize the vo pipeline
-max_temporal_recall = 10;
+max_temporal_recall = 20;
 [H,W] = size(prev_img);
 vo = VisualOdometry(cameraParams, [H,W],...
+    'AngularThreshold', 1.3, ...
     'MaxTemporalRecall', max_temporal_recall, ...
-    'MaxNumLandmarks', 600, ...
-    'MaxReprojectionError', 3);
+    'MaxNumLandmarks', 350, ...
+    'MaxReprojectionError', 2);
 
 % Initialize the state struct
 state = initializeState(landmarks, keypoints, reproError, pose, 1);
