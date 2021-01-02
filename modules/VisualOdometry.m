@@ -66,6 +66,7 @@ classdef VisualOdometry
             landmarks = curr_state.landmarks;
             keypoints = curr_state.keypoints;
             reproError = curr_state.reproError;
+            reproErrorOld = reproError;
 
             assert(length(reproError)==size(landmarks,1), 'Inconsistent state');
 %             assert(size(landmarks,1)>0, 'No landmarks');
@@ -96,7 +97,7 @@ classdef VisualOdometry
             for i=find(val_cand.')
                 % Updating reprojection errors of landmarks
                 if size(reproError,1)>0
-                    [max_reproError, max_reproError_indx] = max(reproError);
+                    [max_reproError, max_reproError_indx] = max(reproErrorOld);
                     max_reproError_indx = max_reproError_indx(1);
                 else
                     max_reproError = Inf;
@@ -131,9 +132,10 @@ classdef VisualOdometry
                     if size(landmarks, 1) >= obj.maxNumLandmarks...
                             && repro_err <= max_reproError
                         
-                        landmarks(max_reproError_indx,:) = [];
-                        keypoints(max_reproError_indx,:) = [];
-                        reproError(max_reproError_indx,:) = [];
+                        landmarks(max_reproError_indx,:) = cand_landmark;
+                        keypoints(max_reproError_indx,:) = candidate_tracked(i,:);
+                        reproError(max_reproError_indx,:) = repro_err;
+                        reproErrorOld(max_reproError_indx,:) = 0;
                     end
                     if size(landmarks, 1) < obj.maxNumLandmarks
                         landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
