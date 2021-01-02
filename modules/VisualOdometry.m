@@ -32,8 +32,8 @@ classdef VisualOdometry
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker(...
                 'NumPyramidLevels', 4,...
-                'MaxBidirectionalError', 2,...
-                'BlockSize', [41 41],...
+                'MaxBidirectionalError', 3,...
+                'BlockSize', [51 51],...
                 'MaxIterations', 50);
         end
         
@@ -68,8 +68,8 @@ classdef VisualOdometry
             reproError = curr_state.reproError;
 
             assert(length(reproError)==size(landmarks,1), 'Inconsistent state');
-            assert(size(landmarks,1)>0, 'No landmarks');
-            assert(length(reproError)>0, 'No reprojecton Error');
+%             assert(size(landmarks,1)>0, 'No landmarks');
+%             assert(length(reproError)>0, 'No reprojecton Error');
             
             % Track candidates from the previous frame
             [candidate_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
@@ -90,9 +90,14 @@ classdef VisualOdometry
             % Iterate over all candidates
             for i=find(val_cand.')
                 % Updating reprojection errors of landmarks
-                [max_reproError, max_reproError_indx] = max(reproError);
-                max_reproError_indx = max_reproError_indx(1);
                 
+                if size(reproError,1)>0
+                    [max_reproError, max_reproError_indx] = max(reproError);
+                    max_reproError_indx = max_reproError_indx(1);
+                else
+                    max_reproError = Inf;
+                end
+                    
                 % Triangulate candidate
                 [rotMat0, transVec0] = cameraPoseToExtrinsics(...
                     prev_state.candidate_first_poses{i}(1:3,:),...
