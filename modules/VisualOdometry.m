@@ -20,9 +20,9 @@ classdef VisualOdometry
                 cameraParams
                 imageSize
                 optionalArgs.angularThreshold double = 1.0
-                optionalArgs.maxTemporalRecall uint32 = 10
+                optionalArgs.maxTemporalRecall int8 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
-                optionalArgs.maxReprojectionError double = 3
+                optionalArgs.maxReprojectionError double = 2
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
@@ -71,15 +71,20 @@ classdef VisualOdometry
 %             assert(size(landmarks,1)>0, 'No landmarks');
 %             assert(length(reproError)>0, 'No reprojecton Error');
             
+            fprintf('\tPrevious candidates: \t%d\n', size(prev_state.candidate_keypoints,1));
+
             % Track candidates from the previous frame
             [candidate_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
                 curr_img, prev_state.candidate_keypoints);
             tracked_keypoints = candidate_tracked(val_cand,:);
 
+            fprintf('\tTracked candidates: \t%d\n', size(tracked_keypoints,1));
+            
             candidate_keypoints = double.empty(0,2);
             candidate_first_keypoints = double.empty(0,2);
             candidate_first_poses = [{}];
             candidate_time_indxs = [];
+            candidate_min_score = 0;
 
             % Build the camera matrix for the current view
             [rotMat1, transVec1] = cameraPoseToExtrinsics(...
@@ -90,7 +95,6 @@ classdef VisualOdometry
             % Iterate over all candidates
             for i=find(val_cand.')
                 % Updating reprojection errors of landmarks
-                
                 if size(reproError,1)>0
                     [max_reproError, max_reproError_indx] = max(reproError);
                     max_reproError_indx = max_reproError_indx(1);
@@ -113,6 +117,8 @@ classdef VisualOdometry
                 % negative depth, are too far away, or whose reprojection error
                 % is higher than the required threshold
                 is_valid = is_valid & repro_err <= obj.maxReprojectionError;
+                
+                
 
                 % Ignore if point behind camera
                 if ~is_valid
@@ -288,8 +294,8 @@ classdef VisualOdometry
                 curr_img, prev_state.keypoints);
             valid_tracked_keypoints = tracked_keypoints(val_idx,:);
             valid_landmarks = prev_state.landmarks(val_idx, :);
-            fprintf('\t Previous landmarks: \t%d\n',size(tracked_keypoints,1));
-            fprintf('\t Tracked landmarks: \t%d\n',size(valid_landmarks,1));
+            fprintf('\tPrevious landmarks: \t%d\n',size(tracked_keypoints,1));
+            fprintf('\tTracked landmarks: \t%d\n',size(valid_landmarks,1));
             
             % Estimate the pose in world coordinates
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
@@ -354,9 +360,11 @@ classdef VisualOdometry
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MinQuality', 0.001, ...
                 'FilterSize', 5, ...
-                'MinDistance',5,...
-                'CandidatesToKeep', 250);
+                'MinDistance',10,...
+                'CandidatesToKeep', 100);
 
+            fprintf('\t Curr state fast forwarded candidates: %d\n',size(curr_state.candidate_keypoints,1));
+            
             % Appending candidates to keypoints to track
             curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
                 new_candidate_keypoints];
