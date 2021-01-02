@@ -67,6 +67,10 @@ classdef VisualOdometry
             keypoints = curr_state.keypoints;
             reproError = curr_state.reproError;
 
+            assert(length(reproError)==size(landmarks,1), 'Inconsistent state');
+            assert(size(landmarks,1)>0, 'No landmarks');
+            assert(length(reproError)>0, 'No reprojecton Error');
+            
             % Track candidates from the previous frame
             [candidate_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
                 curr_img, prev_state.candidate_keypoints);
@@ -273,25 +277,23 @@ classdef VisualOdometry
             end
             
             %% Estimate camera pose from 2D-3D point correspondences
-            
+            fprintf('Iteration\n');
             % Instantiate KLT tracker and initialize
             [tracked_keypoints, val_idx, ~] = obj.tracker.track(prev_img,...
                 curr_img, prev_state.keypoints);
             valid_tracked_keypoints = tracked_keypoints(val_idx,:);
             valid_landmarks = prev_state.landmarks(val_idx, :);
+            fprintf('\t Previous landmarks: \t%d\n',size(tracked_keypoints,1));
+            fprintf('\t Tracked landmarks: \t%d\n',size(valid_landmarks,1));
             
             % Estimate the pose in world coordinates
-            tic
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
                 double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
                 'MaxNumTrials', 5000, 'Confidence', 99, ...
                 'MaxReprojectionError', 2);
-            elapsedTime = toc;
-            fprintf("Camera localization elapsed time %f\n", elapsedTime);
             
             % Pose non-linear refinement
-            tic
             intrinsics = obj.getCameraIntrinsics();
             ViewId = uint32(1); AbsolutePose = rigid3d(R_WC, T_WC);
             pointTracks = repmat(pointTrack(1, [0,0]), length(valid_landmarks),1);
@@ -300,14 +302,9 @@ classdef VisualOdometry
                 pointTracks(i).Points = valid_tracked_keypoints(i,:);
             end
             cameraPoses = table(ViewId, AbsolutePose);
-            elapsedTime = toc;
-            fprintf("Non-linear refinement setup elapsed time %f\n", elapsedTime);
-            tic
-            [valid_landmarks, refinedPoses] =  ...
+            [valid_landmarks, refinedPoses, reproErr] =  ...
                 bundleAdjustment(valid_landmarks, pointTracks,...
                 cameraPoses, intrinsics);
-            elapsedTime = toc;
-            fprintf("Non-linear refinement elapsed time %f\n", elapsedTime);
             
             R_WC = refinedPoses.AbsolutePose.Rotation;
             T_WC = refinedPoses.AbsolutePose.Translation;
@@ -317,9 +314,9 @@ classdef VisualOdometry
 %             camMat = cameraMatrix(obj.cameraParams, orientation, location);
 %             ifc_idx = isInFrontOfCamera(camMat, valid_landmarks);
             
-            reproErr = obj.computeReprojectionError(...
-                valid_landmarks, valid_tracked_keypoints, ...
-                [R_WC; T_WC]);
+%             reproErr = obj.computeReprojectionError(...
+%                 valid_landmarks, valid_tracked_keypoints, ...
+%                 [R_WC; T_WC]);
             
             val_idx = reproErr < obj.maxReprojectionError;
 
@@ -329,6 +326,8 @@ classdef VisualOdometry
             
             curr_state.keypoints = valid_tracked_keypoints(val_idx,:);
             curr_state.landmarks = valid_landmarks(val_idx,:);
+            
+            fprintf('\tFiltered with err: \t%d\n',size(curr_state.landmarks,1));
             
             % Update the reprojection error of the tracked landmarks
 %             curr_state.reproError = obj.computeReprojectionError(...
@@ -340,11 +339,8 @@ classdef VisualOdometry
             curr_pose = [R_WC;T_WC];
             
             %% Triangulate new landmarks
-            tic
             [curr_state, tracked_keypoints] = obj.candidateTriangulation(...
                 prev_img, prev_state, curr_img, curr_state, curr_pose);
-            elapsedTime = toc;
-            fprintf("Candidate triangulation elapsed time %f\n", elapsedTime);
             
             %% Select new keypoints to track
             % Only select new keypoints if the number of landmarks which
@@ -353,8 +349,8 @@ classdef VisualOdometry
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MinQuality', 0.001, ...
                 'FilterSize', 5, ...
-                'MinDistance',7,...
-                'CandidatesToKeep', 100);
+                'MinDistance',5,...
+                'CandidatesToKeep', 250);
 
             % Appending candidates to keypoints to track
             curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
@@ -365,6 +361,9 @@ classdef VisualOdometry
                 repmat({curr_pose},1,size(new_candidate_keypoints,1))];
             curr_state.candidate_time_indxs = [curr_state.candidate_time_indxs,...
                 -1*ones(1, size(new_candidate_keypoints,1))];
+            
+            fprintf('\tAdded new landmarks: \t%d\n\n',size(curr_state.landmarks,1));
+            
         end
     end
 end
