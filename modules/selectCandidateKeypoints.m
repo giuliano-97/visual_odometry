@@ -29,7 +29,6 @@ L = D < optionalArgs.MinDistance;
 new_kps = new_kps(sum(L,2) == 0);
 
 % Cap the maximum number of keypoints - pick the required number uniformly
-% num_kps = ceil(optionalArgs.FractionToKeep * size(new_kps,1));
 new_kps = selectUniform(new_kps, optionalArgs.CandidatesToKeep, size(img));
 
 new_kps_loc = new_kps.Location;

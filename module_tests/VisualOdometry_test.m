@@ -30,7 +30,7 @@ if test_bootstrap
     img0 = data_loader.retrieveFrame(bootstrap_frames(1));
     img1 = data_loader.retrieveFrame(bootstrap_frames(2));
     
-    if ndims(img0) == 3
+    if ndims(img0) == 3 
         img0 = rgb2gray(img0);
         img1 = rgb2gray(img1);
     end
@@ -38,7 +38,7 @@ if test_bootstrap
         'MinNumLandmarks', 200,...
         'MaxDepth', 200, ...
         'FeatureMatchingMode', 'KLT', ...
-        'FilterSize', 3, 'MinQuality', 0.005);
+        'FilterSize', 5, 'MinQuality', 0.01);
     prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     data_loader.reset(bootstrap_frames(2)+1);
 else
@@ -58,11 +58,12 @@ assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enough frames');
 
 % Initialize the vo pipeline
-max_temporal_recall = 10;
+max_temporal_recall = 20;
 [H,W] = size(prev_img);
 vo = VisualOdometry(cameraParams, [H,W],...
+    'AngularThreshold', 1.0,...
     'MaxTemporalRecall', max_temporal_recall, ...
-    'MaxNumLandmarks', 600, ...
+    'MaxNumLandmarks', 700, ...
     'MaxReprojectionError', 3);
 
 % Initialize the state struct
