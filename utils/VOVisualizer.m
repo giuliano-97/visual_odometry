@@ -47,9 +47,10 @@ classdef VOVisualizer < handle
                 margin_x = 0.1 * (x_max - x_min);
                 margin_z = 0.1 * (z_max - z_min);
                 limits_x = [x_min - margin_x, x_max + margin_x];
-                limits_z = [z_min - margin_z, z_max + margin_z];
+%                 limits_z = [z_min - margin_z, z_max + margin_z];
                 xlim(limits_x);
-                ylim(limits_z);
+%                 ylim(limits_z);
+                axis('equal');
             else
                ylim([-5, 5]); 
                xlim([-5, 5]);
@@ -91,8 +92,8 @@ classdef VOVisualizer < handle
         function  [] = plotKeypoints(obj, image)
             subplot(2,2,[3,4]);
             if ~isempty(obj.keypoints)
-                image = insertMarker(image, obj.keypoints, 'x',...
-                    'Size', 6, 'Color', 'green');
+                image = insertMarker(image, obj.keypoints, 'o',...
+                    'Size', 4, 'Color', 'green');
             end
             if ~isempty(obj.candidateKeypoints)
                 image = insertMarker(image, obj.candidateKeypoints, 'x',...
