@@ -28,7 +28,7 @@ klt_tracker = KLTTracker('NumPyramidLevels',4,...
                      
 % Define number of frames to replay and where to start.
 num_frames = 200;
-start_frame = 1;
+start_frame = 70;
 
 % Initializing
 data_loader.reset(start_frame);

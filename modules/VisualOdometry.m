@@ -20,9 +20,9 @@ classdef VisualOdometry
                 cameraParams
                 imageSize
                 optionalArgs.angularThreshold double = 1.0
-                optionalArgs.maxTemporalRecall uint32 = 10
+                optionalArgs.maxTemporalRecall int8 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
-                optionalArgs.maxReprojectionError double = 3
+                optionalArgs.maxReprojectionError double = 2
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
@@ -32,8 +32,8 @@ classdef VisualOdometry
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker(...
                 'NumPyramidLevels', 4,...
-                'MaxBidirectionalError', 2,...
-                'BlockSize', [41 41],...
+                'MaxBidirectionalError', 3,...
+                'BlockSize', [51 51],...
                 'MaxIterations', 50);
         end
         
@@ -68,18 +68,23 @@ classdef VisualOdometry
             reproError = curr_state.reproError;
 
             assert(length(reproError)==size(landmarks,1), 'Inconsistent state');
-            assert(size(landmarks,1)>0, 'No landmarks');
-            assert(length(reproError)>0, 'No reprojecton Error');
+%             assert(size(landmarks,1)>0, 'No landmarks');
+%             assert(length(reproError)>0, 'No reprojecton Error');
             
+            fprintf('\tPrevious candidates: \t%d\n', size(prev_state.candidate_keypoints,1));
+
             % Track candidates from the previous frame
             [candidate_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
                 curr_img, prev_state.candidate_keypoints);
             tracked_keypoints = candidate_tracked(val_cand,:);
 
+            fprintf('\tTracked candidates: \t%d\n', size(tracked_keypoints,1));
+            
             candidate_keypoints = double.empty(0,2);
             candidate_first_keypoints = double.empty(0,2);
             candidate_first_poses = [{}];
             candidate_time_indxs = [];
+            candidate_min_score = 0;
 
             % Build the camera matrix for the current view
             [rotMat1, transVec1] = cameraPoseToExtrinsics(...
@@ -90,9 +95,13 @@ classdef VisualOdometry
             % Iterate over all candidates
             for i=find(val_cand.')
                 % Updating reprojection errors of landmarks
-                [max_reproError, max_reproError_indx] = max(reproError);
-                max_reproError_indx = max_reproError_indx(1);
-                
+                if size(reproError,1)>0
+                    [max_reproError, max_reproError_indx] = max(reproError);
+                    max_reproError_indx = max_reproError_indx(1);
+                else
+                    max_reproError = Inf;
+                end
+                    
                 % Triangulate candidate
                 [rotMat0, transVec0] = cameraPoseToExtrinsics(...
                     prev_state.candidate_first_poses{i}(1:3,:),...
@@ -108,6 +117,8 @@ classdef VisualOdometry
                 % negative depth, are too far away, or whose reprojection error
                 % is higher than the required threshold
                 is_valid = is_valid & repro_err <= obj.maxReprojectionError;
+                
+                
 
                 % Ignore if point behind camera
                 if ~is_valid
@@ -237,10 +248,11 @@ classdef VisualOdometry
                         idx = kps_idxs(j);
                         cand_landmark = cand_landmarks(j,:);
                         angle = calculateAngleDeg(cand_landmark, pose, curr_pose);
-                        if angle > obj.angularThreshold && ...
-                                size(landmarks, 1) < obj.maxNumLandmarks
-                            landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
-                            keypoints = [keypoints; candidates_tracked(idx,:)];
+                        if angle > obj.angularThreshold
+                            if size(landmarks, 1) < obj.maxNumLandmarks
+                                landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
+                                keypoints = [keypoints; candidates_tracked(idx,:)];
+                            end
                         % Discard candidate if it has been stored for too long
                         elseif prev_state.candidate_time_indxs(idx) > -obj.maxTemporalRecall
                             candidate_keypoints = [candidate_keypoints;...
@@ -282,8 +294,8 @@ classdef VisualOdometry
                 curr_img, prev_state.keypoints);
             valid_tracked_keypoints = tracked_keypoints(val_idx,:);
             valid_landmarks = prev_state.landmarks(val_idx, :);
-            fprintf('\t Previous landmarks: \t%d\n',size(tracked_keypoints,1));
-            fprintf('\t Tracked landmarks: \t%d\n',size(valid_landmarks,1));
+            fprintf('\tPrevious landmarks: \t%d\n',size(tracked_keypoints,1));
+            fprintf('\tTracked landmarks: \t%d\n',size(valid_landmarks,1));
             
             % Estimate the pose in world coordinates
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
@@ -312,11 +324,17 @@ classdef VisualOdometry
 %             [orientation, location] = cameraPoseToExtrinsics(R_WC, T_WC);
 %             camMat = cameraMatrix(obj.cameraParams, orientation, location);
 %             ifc_idx = isInFrontOfCamera(camMat, valid_landmarks);
+            
+%             reproErr = obj.computeReprojectionError(...
+%                 valid_landmarks, valid_tracked_keypoints, ...
+%                 [R_WC; T_WC]);
+            
+            val_idx = reproErr < obj.maxReprojectionError;
 
-            % Validate the landmarks based also on the reprojection error
-            adaptiveErrorThreshold = obj.maxReprojectionError;
-            val_idx = (reproErr < adaptiveErrorThreshold);
-
+            % Update keypoints and landmarks (keep only inliers)
+%             curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
+%             curr_state.landmarks = valid_landmarks(inl_idx,:);
+            
             curr_state.keypoints = valid_tracked_keypoints(val_idx,:);
             curr_state.landmarks = valid_landmarks(val_idx,:);
             
@@ -345,6 +363,8 @@ classdef VisualOdometry
                 'MinDistance',20,...
                 'CandidatesToKeep', 100);
 
+            fprintf('\t Curr state fast forwarded candidates: %d\n',size(curr_state.candidate_keypoints,1));
+            
             % Appending candidates to keypoints to track
             curr_state.candidate_keypoints = [curr_state.candidate_keypoints;...
                 new_candidate_keypoints];
