@@ -146,7 +146,7 @@ classdef VisualOdometry
                             && candidate_scores(i) > min_score
                         landmarks(min_score_indx,:) = cand_landmark;
                         keypoints(min_score_indx,:) = candidate_tracked(i,:);
-                        curr_tracked_scores(min_score_indx,:) = candidate_scores(i); 
+                        curr_tracked_scores(min_score_indx,:) = Inf; 
                     end
                     if size(landmarks, 1) < obj.maxNumLandmarks
                         landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
