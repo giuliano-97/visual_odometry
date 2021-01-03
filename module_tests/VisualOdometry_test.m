@@ -7,7 +7,7 @@ rng(1023);
 % Load data
 test_bootstrap = true;
 
-dataset_type = 0; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+dataset_type = 2; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
 
 % Pick the correspoinding data loader
 if dataset_type ==0
@@ -38,7 +38,7 @@ if test_bootstrap
         'MinNumLandmarks', 200,...
         'MaxDepth', 200, ...
         'FeatureMatchingMode', 'KLT', ...
-        'FilterSize', 5, 'MinQuality', 0.01);
+        'FilterSize', 11, 'MinQuality', 0.005);
     prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     data_loader.reset(bootstrap_frames(2)+1);
 else
@@ -63,7 +63,7 @@ max_temporal_recall = 20;
 vo = VisualOdometry(cameraParams, [H,W],...
     'AngularThreshold', 1.0,...
     'MaxTemporalRecall', max_temporal_recall, ...
-    'MaxNumLandmarks', 700, ...
+    'MaxNumLandmarks', 200, ...
     'MaxReprojectionError', 3);
 
 % Initialize the state struct

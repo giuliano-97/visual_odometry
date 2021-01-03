@@ -39,21 +39,22 @@ classdef VOVisualizer < handle
                 '-s', 'LineWidth', 1, 'MarkerSize', 2,...
                 'MarkerEdgeColor', 'red', 'MarkerFaceColor',[1 .6 .6],...
                 'Marker', 'o');
-            if length(obj.topViewTrajectory) > 3
-                x_min = min(-5, min(obj.topViewTrajectory(:,1)));
-                x_max = max(5, max(obj.topViewTrajectory(:,1)));
-                z_min = min(-5, min(obj.topViewTrajectory(:,2)));
-                z_max = max(5, max(obj.topViewTrajectory(:,2)));
-                margin_x = 0.1 * (x_max - x_min);
-                margin_z = 0.1 * (z_max - z_min);
-                limits_x = [x_min - margin_x, x_max + margin_x];
-                limits_z = [z_min - margin_z, z_max + margin_z];
-                xlim(limits_x);
-                ylim(limits_z);
-            else
-               ylim([-5, 5]); 
-               xlim([-5, 5]);
-            end
+%             if length(obj.topViewTrajectory) > 3
+%                 x_min = min(-5, min(obj.topViewTrajectory(:,1)));
+%                 x_max = max(5, max(obj.topViewTrajectory(:,1)));
+%                 z_min = min(-5, min(obj.topViewTrajectory(:,2)));
+%                 z_max = max(5, max(obj.topViewTrajectory(:,2)));
+%                 margin_x = 0.1 * (x_max - x_min);
+%                 margin_z = 0.1 * (z_max - z_min);
+%                 limits_x = [x_min - margin_x, x_max + margin_x];
+%                 limits_z = [z_min - margin_z, z_max + margin_z];
+%                 xlim(limits_x);
+%                 ylim(limits_z);
+%             else
+%                ylim([-5, 5]); 
+%                xlim([-5, 5]);
+%             end
+            axis('equal');
             xlabel('X');
             ylabel('Z');
             grid on;
@@ -91,7 +92,7 @@ classdef VOVisualizer < handle
         function  [] = plotKeypoints(obj, image)
             subplot(2,2,[3,4]);
             if ~isempty(obj.keypoints)
-                image = insertMarker(image, obj.keypoints, 'x',...
+                image = insertMarker(image, obj.keypoints, 'o',...
                     'Size', 6, 'Color', 'green');
             end
             if ~isempty(obj.candidateKeypoints)

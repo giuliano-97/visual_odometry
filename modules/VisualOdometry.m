@@ -31,10 +31,10 @@ classdef VisualOdometry
             obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker(...
-                'NumPyramidLevels', 6,...
+                'NumPyramidLevels', 5,...
                 'MaxBidirectionalError', 3,...
-                'BlockSize', [51 51],...
-                'MaxIterations', 50);
+                'BlockSize', [71 71],...
+                'MaxIterations', 70);
         end
         
         function intrinsics = getCameraIntrinsics(obj)
@@ -119,7 +119,6 @@ classdef VisualOdometry
                 is_valid = is_valid & repro_err <= obj.maxReprojectionError;
                 
                 
-
                 % Ignore if point behind camera
                 if ~is_valid
                     continue
@@ -244,8 +243,8 @@ classdef VisualOdometry
                     [cand_landmarks, repro_errs, is_valid] = triangulateMultiview(tracks, ...
                         cameraPoses, intrinsics);
                     is_valid = is_valid & ...
-                        repro_errs < obj.maxReprojectionError & ...
-                        cand_landmarks(:,3) > 0;
+                        repro_errs < obj.maxReprojectionError; %& ...
+%                         cand_landmarks(:,3) > 0;
                     % Validate the landmarks
                     for j=find(is_valid.')
                         % Updating reprojection errors of landmarks
@@ -255,15 +254,27 @@ classdef VisualOdometry
                         else
                             max_reproError = Inf;
                         end
+                        repro_err = repro_errs(j);
                         
                         idx = kps_idxs(j);
                         cand_landmark = cand_landmarks(j,:);
                         angle = calculateAngleDeg(cand_landmark, pose, curr_pose);
                         if angle > obj.angularThreshold
+                            if size(landmarks, 1) >= obj.maxNumLandmarks...
+                                    && repro_err <= max_reproError
+
+                                landmarks(max_reproError_indx,:) = cand_landmark;
+                                keypoints(max_reproError_indx,:) = candidates_tracked(idx,:);
+                                reproError(max_reproError_indx,:) = repro_err;
+                                reproErrorOld(max_reproError_indx,:) = 0;
+                            end
                             if size(landmarks, 1) < obj.maxNumLandmarks
                                 landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
                                 keypoints = [keypoints; candidates_tracked(idx,:)];
+                                reproError = [reproError; repro_err];
                             end
+                               
+                            
                         % Discard candidate if it has been stored for too long
                         elseif prev_state.candidate_time_indxs(idx) > -obj.maxTemporalRecall
                             candidate_keypoints = [candidate_keypoints;...
@@ -281,6 +292,7 @@ classdef VisualOdometry
             
             curr_state.landmarks = landmarks;
             curr_state.keypoints = keypoints;
+            curr_state.reproError = reproError;
             curr_state.candidate_keypoints = candidate_keypoints;
             curr_state.candidate_first_keypoints = candidate_first_keypoints;
             curr_state.candidate_first_poses = candidate_first_poses;
@@ -378,8 +390,8 @@ classdef VisualOdometry
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MinQuality', 0.001, ...
-                'FilterSize', 3, ...
-                'MinDistance', 15,...
+                'FilterSize', 11, ...
+                'MinDistance', 20,...
                 'CandidatesToKeep', 125);
 
             fprintf('\t Curr state fast forwarded candidates: %d\n',size(curr_state.candidate_keypoints,1));
