@@ -180,7 +180,8 @@ classdef VisualOdometry
         end
             
         function [curr_state, tracked_keypoints] = candidateTriangulationV2(...
-                obj, prev_img, prev_state, curr_img, curr_state, curr_pose)
+                obj, prev_img, prev_state, curr_img, curr_state, curr_pose,...
+                curr_tracked_scores)
             arguments
                 obj
                 prev_img
@@ -188,6 +189,7 @@ classdef VisualOdometry
                 curr_img
                 curr_state
                 curr_pose
+                curr_tracked_scores
             end
 
             % Fetch current landmarks and keypoints
@@ -195,7 +197,7 @@ classdef VisualOdometry
             keypoints = curr_state.keypoints;
             
             % Fast-forward candidates by tracking from previous frame
-            [candidates_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
+            [candidates_tracked, val_cand, candidate_scores] = obj.tracker.track(prev_img,...
                 curr_img,...
                 prev_state.candidate_keypoints);
             tracked_keypoints = candidates_tracked(val_cand,:);
@@ -233,7 +235,7 @@ classdef VisualOdometry
             candidate_time_indxs = [];
             
             % Loop over non-empty bins and add views and connections
-            for i=1:obj.maxTemporalRecall
+            for i=1:uint32(obj.maxTemporalRecall)
                 if ~isempty(bins{i,1})
                     % Get all the candidate keypoints
                     kps_idxs = bins{i,1};
@@ -255,17 +257,34 @@ classdef VisualOdometry
                     [cand_landmarks, repro_errs, is_valid] = triangulateMultiview(tracks, ...
                         cameraPoses, intrinsics);
                     is_valid = is_valid & ...
-                        repro_errs < obj.maxReprojectionError & ...
-                        cand_landmarks(:,3) > 0;
+                        repro_errs < obj.maxReprojectionError;% & ...
+%                         cand_landmarks(:,3) > 0;
                     % Validate the landmarks
                     for j=find(is_valid.')
+                        
+                        % Updating tracking score
+                        if size(curr_tracked_scores,1)>0
+                            [min_score, min_score_indx] = min(curr_tracked_scores);
+                            min_score_indx = min_score_indx(1);
+                        else
+                            min_score = 0;
+                        end
+                        
                         idx = kps_idxs(j);
                         cand_landmark = cand_landmarks(j,:);
                         angle = calculateAngleDeg(cand_landmark, pose, curr_pose);
                         if angle > obj.angularThreshold
+                            if size(landmarks,1) >= obj.maxNumLandmarks...
+                                    && candidate_scores(idx) > min_score
+                                landmarks(min_score_indx,:) = cand_landmark;
+                                keypoints(min_score_indx,:) = tracks(j).Points(end,:);
+                                curr_tracked_scores(min_score_indx,:) = Inf; 
+                            end
                             if size(landmarks, 1) < obj.maxNumLandmarks
                                 landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
-                                keypoints = [keypoints; candidates_tracked(idx,:)];
+                                keypoints = [keypoints; tracks(j).Points(end,:)];
+        %                         reproError = [reproError; repro_err];
+        %                         curr_tracked_scores = [curr_tracked_scores; candidate_scores(i)];
                             end
                         % Discard candidate if it has been stored for too long
                         elseif prev_state.candidate_time_indxs(idx) > -obj.maxTemporalRecall
@@ -366,7 +385,7 @@ classdef VisualOdometry
             curr_pose = [R_WC;T_WC];
             
             %% Triangulate new landmarks
-            [curr_state, tracked_keypoints] = obj.candidateTriangulation(...
+            [curr_state, tracked_keypoints] = obj.candidateTriangulationV2(...
                 prev_img, prev_state, curr_img, curr_state, curr_pose, curr_tracked_scores);
             
             %% Select new keypoints to track
@@ -375,9 +394,9 @@ classdef VisualOdometry
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MinQuality', 0.001, ...
-                'FilterSize', 3, ...
-                'MinDistance',7,...
-                'CandidatesToKeep', 150);
+                'FilterSize', 11, ...
+                'MinDistance',20,...
+                'CandidatesToKeep', 100);
 
             fprintf('\t Curr state fast forwarded candidates: %d\n',size(curr_state.candidate_keypoints,1));
             
