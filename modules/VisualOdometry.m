@@ -85,7 +85,6 @@ classdef VisualOdometry
             candidate_first_keypoints = double.empty(0,2);
             candidate_first_poses = [{}];
             candidate_time_indxs = [];
-            candidate_min_score = 0;
 
             % Build the camera matrix for the current view
             [rotMat1, transVec1] = cameraPoseToExtrinsics(...
@@ -181,6 +180,8 @@ classdef VisualOdometry
             % Fetch current landmarks and keypoints
             landmarks = curr_state.landmarks;
             keypoints = curr_state.keypoints;
+            reproError = curr_state.reproError;
+            reproErrorOld = reproError;
             
             % Fast-forward candidates by tracking from previous frame
             [candidates_tracked, val_cand, ~] = obj.tracker.track(prev_img,...
@@ -247,6 +248,14 @@ classdef VisualOdometry
                         cand_landmarks(:,3) > 0;
                     % Validate the landmarks
                     for j=find(is_valid.')
+                        % Updating reprojection errors of landmarks
+                        if size(reproError,1)>0
+                            [max_reproError, max_reproError_indx] = max(reproErrorOld);
+                            max_reproError_indx = max_reproError_indx(1);
+                        else
+                            max_reproError = Inf;
+                        end
+                        
                         idx = kps_idxs(j);
                         cand_landmark = cand_landmarks(j,:);
                         angle = calculateAngleDeg(cand_landmark, pose, curr_pose);
