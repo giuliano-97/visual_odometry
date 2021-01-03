@@ -1,12 +1,12 @@
-function scores = uniformityScores(candidates_and_keypoints, sigma, optionalArgs)
+function scores = uniformityScores(candidates_and_keypoints, optionalArgs)
     arguments
         candidates_and_keypoints (:,2) double= random('Uniform',1,600,600,2);
-        sigma double = 30;
+        optionalArgs.Sigma double = 30;
         optionalArgs.Test = false;
     end
     % Defining covariance matrix and maximum value in individual
     % distribution
-    sigma_cov = diag(sigma*[1,1]);
+    sigma_cov = diag(optionalArgs.Sigma*[1,1]);
     maximum_dist_value = mvnpdf([0,0],[0,0],sigma_cov);
     
     % Defnining function
