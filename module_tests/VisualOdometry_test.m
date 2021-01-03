@@ -7,7 +7,7 @@ clear;
 % Load data
 test_bootstrap = true;
 
-dataset_type = 2; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+dataset_type = 0; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
 
 % Pick the correspoinding data loader
 if dataset_type ==0

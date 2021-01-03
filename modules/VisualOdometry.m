@@ -10,6 +10,7 @@ classdef VisualOdometry
         maxNumLandmarks
         maxReprojectionError
         tracker
+        penaltyFactor
     end
      
     methods        
@@ -23,6 +24,7 @@ classdef VisualOdometry
                 optionalArgs.maxTemporalRecall int8 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 2
+                optionalArgs.penaltyFactor double = 0.6;
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
@@ -35,6 +37,7 @@ classdef VisualOdometry
                 'MaxBidirectionalError', 3,...
                 'BlockSize', [71 71],...
                 'MaxIterations', 70);
+            obj.penaltyFactor = optionalArgs.penaltyFactor;
         end
         
         function intrinsics = getCameraIntrinsics(obj)
@@ -67,8 +70,9 @@ classdef VisualOdometry
             landmarks = curr_state.landmarks;
             keypoints = curr_state.keypoints;
             reproError = curr_state.reproError;
+            tracking_scores = curr_tracked_scores;
 
-            assert(length(reproError)==size(landmarks,1), 'Inconsistent state');
+%             assert(length(reproError)==size(landmarks,1), 'Inconsistent state');
 %             assert(size(landmarks,1)>0, 'No landmarks');
 %             assert(length(reproError)>0, 'No reprojecton Error');
             
@@ -135,25 +139,11 @@ classdef VisualOdometry
                 % Add landmarks if complies baseline threshold
                 if calculateAngleDeg(cand_landmark, prev_state.candidate_first_poses{i},...
                         curr_pose) > obj.angularThreshold
-%                         && size(landmarks, 1) < obj.maxNumLandmarks
-%                     if size(landmarks, 1) >= obj.maxNumLandmarks...
-%                             && repro_err <= max_reproError
-%                         
-%                         landmarks(max_reproError_indx,:) = [];
-%                         keypoints(max_reproError_indx,:) = [];
-%                         reproError(max_reproError_indx,:) = [];
-                    if size(landmarks,1) >= obj.maxNumLandmarks...
-                            && candidate_scores(i) > min_score
-                        landmarks(min_score_indx,:) = cand_landmark;
-                        keypoints(min_score_indx,:) = candidate_tracked(i,:);
-                        curr_tracked_scores(min_score_indx,:) = Inf; 
-                    end
-                    if size(landmarks, 1) < obj.maxNumLandmarks
-                        landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
-                        keypoints = [keypoints; candidate_tracked(i,:)];
-%                         reproError = [reproError; repro_err];
-%                         curr_tracked_scores = [curr_tracked_scores; candidate_scores(i)];
-                    end
+                    landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
+                    keypoints = [keypoints; candidate_tracked(i,:)];
+                    tracking_scores = [tracking_scores; candidate_scores(i)];
+                    reproError = [reproError; repro_err];
+%                     curr_tracked_scores = [curr_tracked_scores; candidate_scores(i)];
                 else
                     % Discard candidate if has been stored for too long
                     if prev_state.candidate_time_indxs(i) > -obj.maxTemporalRecall
@@ -168,6 +158,16 @@ classdef VisualOdometry
                     end
                 end
 
+            end
+            
+            if size(landmarks,1) > obj.maxNumLandmarks
+                uniformity_scores = uniformityScores(keypoints, 'Sigma', 30);
+                penalty = (1-obj.penaltyFactor)*(1-uniformity_scores) +...
+                    (obj.penaltyFactor)*tracking_scores;
+                [~, sort_indcs] = sort(penalty,'descend');
+                landmarks = landmarks(sort_indcs(1:obj.maxNumLandmarks),:);
+                keypoints = keypoints(sort_indcs(1:obj.maxNumLandmarks),:);
+                reproError = reproError(sort_indcs(1:obj.maxNumLandmarks),:);
             end
 
             curr_state.landmarks = landmarks;
@@ -385,7 +385,7 @@ classdef VisualOdometry
             curr_pose = [R_WC;T_WC];
             
             %% Triangulate new landmarks
-            [curr_state, tracked_keypoints] = obj.candidateTriangulationV2(...
+            [curr_state, tracked_keypoints] = obj.candidateTriangulation(...
                 prev_img, prev_state, curr_img, curr_state, curr_pose, curr_tracked_scores);
             
             %% Select new keypoints to track
