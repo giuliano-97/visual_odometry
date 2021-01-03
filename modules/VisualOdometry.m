@@ -11,6 +11,7 @@ classdef VisualOdometry
         maxReprojectionError
         tracker
         penaltyFactor
+        uniformityScoreSigma
     end
      
     methods        
@@ -24,7 +25,8 @@ classdef VisualOdometry
                 optionalArgs.maxTemporalRecall int8 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 2
-                optionalArgs.penaltyFactor double = 0.6;
+                optionalArgs.penaltyFactor double = 0.7;
+                optionalArgs.uniformityScoreSigma double = 30;
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
@@ -33,11 +35,12 @@ classdef VisualOdometry
             obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker(...
-                'NumPyramidLevels', 5,...
+                'NumPyramidLevels', 4,...
                 'MaxBidirectionalError', 3,...
                 'BlockSize', [71 71],...
                 'MaxIterations', 70);
             obj.penaltyFactor = optionalArgs.penaltyFactor;
+            obj.uniformityScoreSigma = optionalArgs.uniformityScoreSigma;
         end
         
         function intrinsics = getCameraIntrinsics(obj)
@@ -161,7 +164,8 @@ classdef VisualOdometry
             end
             
             if size(landmarks,1) > obj.maxNumLandmarks
-                uniformity_scores = uniformityScores(keypoints, 'Sigma', 30);
+                uniformity_scores = uniformityScores(keypoints,...
+                    'Sigma', obj.uniformityScoreSigma);
                 penalty = (1-obj.penaltyFactor)*(1-uniformity_scores) +...
                     (obj.penaltyFactor)*tracking_scores;
                 [~, sort_indcs] = sort(penalty,'descend');
@@ -195,6 +199,7 @@ classdef VisualOdometry
             % Fetch current landmarks and keypoints
             landmarks = curr_state.landmarks;
             keypoints = curr_state.keypoints;
+            tracking_scores = curr_tracked_scores;
             
             % Fast-forward candidates by tracking from previous frame
             [candidates_tracked, val_cand, candidate_scores] = obj.tracker.track(prev_img,...
@@ -262,30 +267,15 @@ classdef VisualOdometry
                     % Validate the landmarks
                     for j=find(is_valid.')
                         
-                        % Updating tracking score
-                        if size(curr_tracked_scores,1)>0
-                            [min_score, min_score_indx] = min(curr_tracked_scores);
-                            min_score_indx = min_score_indx(1);
-                        else
-                            min_score = 0;
-                        end
-                        
                         idx = kps_idxs(j);
                         cand_landmark = cand_landmarks(j,:);
                         angle = calculateAngleDeg(cand_landmark, pose, curr_pose);
                         if angle > obj.angularThreshold
-                            if size(landmarks,1) >= obj.maxNumLandmarks...
-                                    && candidate_scores(idx) > min_score
-                                landmarks(min_score_indx,:) = cand_landmark;
-                                keypoints(min_score_indx,:) = tracks(j).Points(end,:);
-                                curr_tracked_scores(min_score_indx,:) = Inf; 
-                            end
-                            if size(landmarks, 1) < obj.maxNumLandmarks
                                 landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
                                 keypoints = [keypoints; tracks(j).Points(end,:)];
+                                tracking_scores = [tracking_scores; candidate_scores(idx)];
         %                         reproError = [reproError; repro_err];
         %                         curr_tracked_scores = [curr_tracked_scores; candidate_scores(i)];
-                            end
                         % Discard candidate if it has been stored for too long
                         elseif prev_state.candidate_time_indxs(idx) > -obj.maxTemporalRecall
                             candidate_keypoints = [candidate_keypoints;...
@@ -299,6 +289,16 @@ classdef VisualOdometry
                         end
                     end
                 end
+            end
+            
+            if size(landmarks,1) > obj.maxNumLandmarks
+                uniformity_scores = uniformityScores(keypoints,...
+                    'Sigma', obj.uniformityScoreSigma);
+                penalty = (1-obj.penaltyFactor)*(1-uniformity_scores) +...
+                    (obj.penaltyFactor)*tracking_scores;
+                [~, sort_indcs] = sort(penalty,'descend');
+                landmarks = landmarks(sort_indcs(1:obj.maxNumLandmarks),:);
+                keypoints = keypoints(sort_indcs(1:obj.maxNumLandmarks),:);
             end
             
             curr_state.landmarks = landmarks;
@@ -394,9 +394,9 @@ classdef VisualOdometry
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MinQuality', 0.001, ...
-                'FilterSize', 11, ...
+                'FilterSize', 7, ...
                 'MinDistance',20,...
-                'CandidatesToKeep', 100);
+                'CandidatesToKeep', 150);
 
             fprintf('\t Curr state fast forwarded candidates: %d\n',size(curr_state.candidate_keypoints,1));
             

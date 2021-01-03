@@ -7,7 +7,7 @@ clear;
 % Load data
 test_bootstrap = true;
 
-dataset_type = 0; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
+dataset_type = 2; % 0: KITTI, 1: malaga, 2: parking, 3:KITTI_tutorial
 
 % Pick the correspoinding data loader
 if dataset_type ==0
@@ -58,11 +58,10 @@ assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enough frames');
 
 % Initialize the vo pipeline
-max_temporal_recall = 10;
 [H,W] = size(prev_img);
 vo = VisualOdometry(cameraParams, [H,W],...
-    'MaxTemporalRecall', max_temporal_recall, ...
-    'MaxNumLandmarks', 150, ...
+    'MaxTemporalRecall', 10, ...
+    'MaxNumLandmarks', 250, ...
     'MaxReprojectionError', 2);
 
 % Initialize the state struct
