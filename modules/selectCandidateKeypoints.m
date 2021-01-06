@@ -18,6 +18,8 @@ end
 
 % Detect new keypoints
 new_kps = detectMinEigenFeatures(img,'MinQuality', optionalArgs.MinQuality);
+% new_kps = detectSURFFeatures(img,'MinQuality', 0.1);
+% new_kps = detectHarrisFeatures(img,'MinQuality', optionalArgs.MinQuality);
 
 % Compute the distance of all new keypoints from all existing keypoints
 D = pdist2(single(new_kps.Location), single(curr_kps), 'euclidean');

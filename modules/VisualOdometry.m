@@ -26,7 +26,7 @@ classdef VisualOdometry
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 2
                 optionalArgs.penaltyFactor double = 0.7;
-                optionalArgs.uniformityScoreSigma double = 30;
+                optionalArgs.uniformityScoreSigma double = 40;
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
@@ -36,9 +36,9 @@ classdef VisualOdometry
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker(...
                 'NumPyramidLevels', 4,...
-                'MaxBidirectionalError', 3,...
-                'BlockSize', [71 71],...
-                'MaxIterations', 70);
+                'MaxBidirectionalError', 1,...
+                'BlockSize', [61 61],...
+                'MaxIterations', 150);
             obj.penaltyFactor = optionalArgs.penaltyFactor;
             obj.uniformityScoreSigma = optionalArgs.uniformityScoreSigma;
         end
@@ -336,19 +336,23 @@ classdef VisualOdometry
                 double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
                 'MaxNumTrials', 5000, 'Confidence', 99, ...
-                'MaxReprojectionError', 2);
+                'MaxReprojectionError', 5);
+            
+            inlier_keypoints = valid_tracked_keypoints(inl_idx,:);
+            inlier_landmarks = valid_landmarks(inl_idx,:);
+            inlier_tracked_scores = valid_tracked_scores(inl_idx,:);
             
             % Pose non-linear refinement
             intrinsics = obj.getCameraIntrinsics();
             ViewId = uint32(1); AbsolutePose = rigid3d(R_WC, T_WC);
-            pointTracks = repmat(pointTrack(1, [0,0]), length(valid_landmarks),1);
-            for i=1:length(valid_landmarks)
+            pointTracks = repmat(pointTrack(1, [0,0]), length(inlier_landmarks),1);
+            for i=1:length(inlier_landmarks)
                 pointTracks(i).ViewIds = ViewId;
-                pointTracks(i).Points = valid_tracked_keypoints(i,:);
+                pointTracks(i).Points = inlier_keypoints(i,:);
             end
             cameraPoses = table(ViewId, AbsolutePose);
-            [valid_landmarks, refinedPoses, reproErr] =  ...
-                bundleAdjustment(valid_landmarks, pointTracks,...
+            [refinedLandmarks, refinedPoses, reproErr] =  ...
+                bundleAdjustment(inlier_landmarks, pointTracks,...
                 cameraPoses, intrinsics);
             
             R_WC = refinedPoses.AbsolutePose.Rotation;
@@ -369,9 +373,9 @@ classdef VisualOdometry
 %             curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
 %             curr_state.landmarks = valid_landmarks(inl_idx,:);
             
-            curr_state.keypoints = valid_tracked_keypoints(val_idx,:);
-            curr_state.landmarks = valid_landmarks(val_idx,:);
-            curr_tracked_scores = valid_tracked_scores(val_idx,:);
+            curr_state.keypoints = inlier_keypoints(val_idx,:);
+            curr_state.landmarks = refinedLandmarks(val_idx,:);
+            curr_tracked_scores = inlier_tracked_scores(val_idx,:);
             
             fprintf('\tFiltered with err: \t%d\n',size(curr_state.landmarks,1));
             
@@ -394,9 +398,9 @@ classdef VisualOdometry
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MinQuality', 0.001, ...
-                'FilterSize', 7, ...
-                'MinDistance',20,...
-                'CandidatesToKeep', 150);
+                'FilterSize', 5, ...
+                'MinDistance',15,...
+                'CandidatesToKeep', 80);
 
             fprintf('\t Curr state fast forwarded candidates: %d\n',size(curr_state.candidate_keypoints,1));
             
