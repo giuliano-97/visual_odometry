@@ -18,7 +18,7 @@ function [keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, camera
             {'KLT', 'HardMatching'})} = 'KLT'
         optionalArgs.MinQuality double = 0.01 % Min. quality of detected Harris features 
         optionalArgs.FilterSize double = 5 % Filter size for Harris feature detection
-        optionalArgs.uniformFeaturesPercentage double = 100 % Number of uniform features picked
+        optionalArgs.uniformFeaturesPercentage double = 80 % Number of uniform features picked
     end
     
 %% Extract bootstrap set of keypoints and landmarks

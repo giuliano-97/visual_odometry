@@ -26,7 +26,7 @@ cameraParams = data_loader.camParams;
 
 if test_bootstrap
     % Load bootstrap images
-    bootstrap_frames = [1,3];
+    bootstrap_frames = [21,22];
     img0 = data_loader.retrieveFrame(bootstrap_frames(1));
     img1 = data_loader.retrieveFrame(bootstrap_frames(2));
     
@@ -38,7 +38,7 @@ if test_bootstrap
         'MinNumLandmarks', 200,...
         'MaxDepth', 200, ...
         'FeatureMatchingMode', 'KLT', ...
-        'FilterSize', 3, 'MinQuality', 0.001);
+        'FilterSize', 5, 'MinQuality', 0.001);
     prev_img = data_loader.retrieveFrame(bootstrap_frames(2));
     data_loader.reset(bootstrap_frames(2)+1);
 else
@@ -61,8 +61,8 @@ assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
 [H,W] = size(prev_img);
 vo = VisualOdometry(cameraParams, [H,W],...
     'MaxTemporalRecall', 10, ...
-    'MaxNumLandmarks', 150, ...
-    'MaxReprojectionError', 3);
+    'MaxNumLandmarks', 200, ...
+    'MaxReprojectionError', 5);
 
 % Initialize the state struct
 state = initializeState(landmarks, keypoints, reproError, pose, 1);

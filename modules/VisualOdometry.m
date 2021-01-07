@@ -25,8 +25,8 @@ classdef VisualOdometry
                 optionalArgs.maxTemporalRecall int8 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 2
-                optionalArgs.penaltyFactor double = 0.7;
-                optionalArgs.uniformityScoreSigma double = 40;
+                optionalArgs.penaltyFactor double = 0.5;
+                optionalArgs.uniformityScoreSigma double = 30;
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
@@ -36,7 +36,7 @@ classdef VisualOdometry
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker(...
                 'NumPyramidLevels', 4,...
-                'MaxBidirectionalError', 1,...
+                'MaxBidirectionalError', 2,...
                 'BlockSize', [61 61],...
                 'MaxIterations', 150);
             obj.penaltyFactor = optionalArgs.penaltyFactor;
@@ -367,7 +367,7 @@ classdef VisualOdometry
 %                 valid_landmarks, valid_tracked_keypoints, ...
 %                 [R_WC; T_WC]);
             
-            val_idx = reproErr < obj.maxReprojectionError;
+            val_idx = reproErr < Inf;%obj.maxReprojectionError;
 
             % Update keypoints and landmarks (keep only inliers)
 %             curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
@@ -400,7 +400,7 @@ classdef VisualOdometry
                 'MinQuality', 0.001, ...
                 'FilterSize', 5, ...
                 'MinDistance',15,...
-                'CandidatesToKeep', 80);
+                'CandidatesToKeep', 50);
 
             fprintf('\t Curr state fast forwarded candidates: %d\n',size(curr_state.candidate_keypoints,1));
             

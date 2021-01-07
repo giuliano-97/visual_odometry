@@ -9,10 +9,9 @@ function scores = uniformityScores(candidates_and_keypoints, optionalArgs)
     sigma_cov = diag(optionalArgs.Sigma*[1,1]);
     maximum_dist_value = mvnpdf([0,0],[0,0],sigma_cov);
     
-%     % Defnining functionc
+    % Defnining functionc
 %     tic
 %     func = @(X) zeros(size(X,1),1);
-%     tic
 %     for i = 1:size(candidates_and_keypoints,1)
 %         func = @(X) func(X) + mvnpdf(X,candidates_and_keypoints(i,:),...
 %             sigma_cov);
