@@ -133,8 +133,7 @@ classdef VisualOdometry
                 % is higher than the required threshold
                 is_valid = is_valid & repro_err <= obj.maxReprojectionError;
                 
-                
-
+               
                 % Ignore if point behind camera
                 if ~is_valid
                     continue
@@ -335,55 +334,39 @@ classdef VisualOdometry
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
                 double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
-                'MaxNumTrials', 5000, 'Confidence', 99, ...
+                'MaxNumTrials', 4000, 'Confidence', 99, ...
                 'MaxReprojectionError', 5);
             
             inlier_keypoints = valid_tracked_keypoints(inl_idx,:);
             inlier_landmarks = valid_landmarks(inl_idx,:);
-            inlier_tracked_scores = valid_tracked_scores(inl_idx,:);
             
             % Pose non-linear refinement
             intrinsics = obj.getCameraIntrinsics();
             ViewId = uint32(1); AbsolutePose = rigid3d(R_WC, T_WC);
-            pointTracks = repmat(pointTrack(1, [0,0]), length(inlier_landmarks),1);
-            for i=1:length(inlier_landmarks)
+            pointTracks = repmat(pointTrack(1, [0,0]), length(inlier_keypoints),1);
+            for i=1:length(inlier_keypoints)
                 pointTracks(i).ViewIds = ViewId;
                 pointTracks(i).Points = inlier_keypoints(i,:);
             end
             cameraPoses = table(ViewId, AbsolutePose);
-            [refinedLandmarks, refinedPoses, reproErr] =  ...
+            [refined_inlier_landmarks, refinedPoses, reproErr] =  ...
                 bundleAdjustment(inlier_landmarks, pointTracks,...
                 cameraPoses, intrinsics);
             
             R_WC = refinedPoses.AbsolutePose.Rotation;
             T_WC = refinedPoses.AbsolutePose.Translation;
+            valid_landmarks(inl_idx, :) = refined_inlier_landmarks;
 
 %             % Verify which landmarks are still in front of the camera (ifc)
 %             [orientation, location] = cameraPoseToExtrinsics(R_WC, T_WC);
 %             camMat = cameraMatrix(obj.cameraParams, orientation, location);
 %             ifc_idx = isInFrontOfCamera(camMat, valid_landmarks);
             
-%             reproErr = obj.computeReprojectionError(...
-%                 valid_landmarks, valid_tracked_keypoints, ...
-%                 [R_WC; T_WC]);
-            
-            val_idx = reproErr < Inf;%obj.maxReprojectionError;
-
-            % Update keypoints and landmarks (keep only inliers)
-%             curr_state.keypoints = valid_tracked_keypoints(inl_idx,:);
-%             curr_state.landmarks = valid_landmarks(inl_idx,:);
-            
-            curr_state.keypoints = inlier_keypoints(val_idx,:);
-            curr_state.landmarks = refinedLandmarks(val_idx,:);
-            curr_tracked_scores = inlier_tracked_scores(val_idx,:);
-            
-            fprintf('\tFiltered with err: \t%d\n',size(curr_state.landmarks,1));
-            
-            % Update the reprojection error of the tracked landmarks
-%             curr_state.reproError = obj.computeReprojectionError(...
-%                 curr_state.landmarks, curr_state.keypoints, ...
-%                 [R_WC; T_WC]);
-            curr_state.reproError = reproErr(val_idx);
+            % update current state
+            curr_state.keypoints =  valid_tracked_keypoints;
+            curr_state.landmarks = valid_landmarks;
+            curr_tracked_scores = valid_tracked_scores;
+            curr_state.reproError = reproErr;
             
             % Update pose
             curr_pose = [R_WC;T_WC];
@@ -400,7 +383,7 @@ classdef VisualOdometry
                 'MinQuality', 0.001, ...
                 'FilterSize', 5, ...
                 'MinDistance',15,...
-                'CandidatesToKeep', 50);
+                'CandidatesToKeep', 75);
 
             fprintf('\t Curr state fast forwarded candidates: %d\n',size(curr_state.candidate_keypoints,1));
             
