@@ -16,6 +16,15 @@ classdef VisualOdometry
         tracker
         penaltyFactor
         uniformityScoreSigma
+        
+        RANSACMaxNumTrials
+        RANSACConfidence
+        RANSACMAxReprojectionError
+        
+        newCandidateMinQuality
+        newCandidateFilterSize
+        newCandidateMinDistance
+        newCandidateCandidatesToKeep
     end
      
     methods        
@@ -25,36 +34,55 @@ classdef VisualOdometry
             arguments
                 cameraParams
                 imageSize
-                optionalArgs.angularThreshold double = 1.5
-                optionalArgs.maxTemporalRecall int8 = 10
-                optionalArgs.maxNumLandmarks uint32 = 300
-                optionalArgs.ransacConfidence double = 99
-                optionalArgs.ransacInlierThreshold double = 3
-                optionalArgs.maxReprojectionError double = 2
-                optionalArgs.minNewKeypointsDistance double = 18
-                optionalArgs.maxNewKeypointsPerFrame int32 = 50
-                optionalArgs.penaltyFactor double = 0.5
-                optionalArgs.uniformityScoreSigma double = 30
+
+                optionalArgs.maxTemporalRecall
+                optionalArgs.maxNumLandmarks
+                optionalArgs.maxReprojectionError
+                optionalArgs.angularThreshold
+                
+                optionalArgs.penaltyFactor
+                optionalArgs.uniformityScoreSigma
+                
+                optionalArgs.KLTnumPyramidLevels
+                optionalArgs.KLTmaxBidirectionalError
+                optionalArgs.KLTblockSize
+                optionalArgs.KLTmaxIterations
+                
+                optionalArgs.RANSACMaxNumTrials
+                optionalArgs.RANSACConfidence
+                optionalArgs.RANSACMAxReprojectionError
+                
+                optionalArgs.NewCandidateMinQuality
+                optionalArgs.NewCandidateFilterSize
+                optionalArgs.NewCandidateMinDistance
+                optionalArgs.NewCandidateCandidatesToKeep
+                 
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
             obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
-            obj.ransacConfidence = optionalArgs.ransacConfidence;
-            obj.ransacInlierThreshold = optionalArgs.ransacInlierThreshold;
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
-            obj.tracker = KLTTracker(...
-                'NumPyramidLevels', 7,...
-                'MaxBidirectionalError', 2,...
-                'BlockSize', [51 51],...
-                'MaxIterations', 100);
-            obj.minNewKeypointsDistance = ...
-                optionalArgs.minNewKeypointsDistance;
-            obj.maxNewKeypointsPerFrame = ...
-                optionalArgs.maxNewKeypointsPerFrame;
+
             obj.penaltyFactor = optionalArgs.penaltyFactor;
             obj.uniformityScoreSigma = optionalArgs.uniformityScoreSigma;
+            
+            obj.tracker = KLTTracker(...
+                'NumPyramidLevels', optionalArgs.KLTnumPyramidLevels,...
+                'MaxBidirectionalError', optionalArgs.KLTmaxBidirectionalError,...
+                'BlockSize', optionalArgs.KLTblockSize,...
+                'MaxIterations', optionalArgs.KLTmaxIterations);
+            
+            obj.RANSACMaxNumTrials = optionalArgs.RANSACMaxNumTrials;
+            obj.RANSACConfidence = optionalArgs.RANSACConfidence;
+            obj.RANSACMAxReprojectionError = optionalArgs.RANSACMAxReprojectionError;
+                
+            obj.newCandidateMinQuality = optionalArgs.NewCandidateMinQuality;
+            obj.newCandidateFilterSize = optionalArgs.NewCandidateFilterSize;
+            obj.newCandidateMinDistance = optionalArgs.NewCandidateMinDistance;
+            obj.newCandidateCandidatesToKeep = optionalArgs.NewCandidateCandidatesToKeep;
+            
         end
         
         function intrinsics = getCameraIntrinsics(obj)
@@ -222,9 +250,9 @@ classdef VisualOdometry
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
                 double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
-                'MaxNumTrials', 4000, ...
-                'Confidence', obj.ransacConfidence, ...
-                'MaxReprojectionError', obj.ransacInlierThreshold);
+                'MaxNumTrials',         obj.RANSACMaxNumTrials,...
+                'Confidence',           obj.RANSACConfidence, ...
+                'MaxReprojectionError', obj.RANSACMAxReprojectionError);
             
             % If enough inliers were found, run non-linear refinment
             if pose_status == 0
@@ -282,11 +310,11 @@ classdef VisualOdometry
             % are being tracked is smaller than the allowed maximum
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
-                'MinQuality', 0.001, ...
-                'FilterSize', 5, ...
-                'MinDistance', obj.minNewKeypointsDistance, ...
-                'MaxNewKeypoints', obj.maxNewKeypointsPerFrame);
-
+                'MinQuality', obj.newCandidateMinQuality, ...
+                'FilterSize', obj.newCandidateFilterSize, ...
+                'MinDistance',obj.newCandidateMinDistance,...
+                'CandidatesToKeep', obj.newCandidateCandidatesToKeep);
+            
             fprintf('\t Curr state fast forwarded candidates: %d\n', size(curr_state.candidate_keypoints,1));
             
             % Appending candidates to keypoints to track

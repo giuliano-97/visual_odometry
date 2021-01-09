@@ -21,7 +21,6 @@ function scores = uniformityScores(candidates_and_keypoints, optionalArgs)
 %     func = @(X) func(X)/max(func(X));
 %     scores = func(candidates_and_keypoints);
 %     toc
-    tic
     row_mvnpdf = @(u_x, u_y) (@(x) mvnpdf(x, [u_x,u_y], sigma_cov));
     
     funcs = @(X) bsxfun(row_mvnpdf, X(:,1), X(:,2));
@@ -34,7 +33,6 @@ function scores = uniformityScores(candidates_and_keypoints, optionalArgs)
     scores = rowfun(penalty_func, tbl);
     scores = table2array(scores);
     scores = scores/max(scores);
-    toc
 
     %% Displaying results for testing
     if optionalArgs.Test 
