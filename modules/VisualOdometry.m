@@ -5,7 +5,7 @@ classdef VisualOdometry
         % General camera parameters of rectified image
         cameraParams
         imageSize
-        
+
         % New landmarks params
         angularThreshold
         maxTemporalRecall
@@ -31,7 +31,7 @@ classdef VisualOdometry
         
         % KLT tracker
         tracker
-         
+
     end
      
     methods        
@@ -63,7 +63,7 @@ classdef VisualOdometry
                 optionalArgs.NewCandidateFilterSize
                 optionalArgs.NewCandidateMinDistance
                 optionalArgs.NewCandidateMaxNewKeypoints
-                 
+                
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
@@ -261,31 +261,33 @@ classdef VisualOdometry
                 'Confidence',           obj.ransacConfidence, ...
                 'MaxReprojectionError', obj.ransacMAxReprojectionError);
             
-            % If enough inliers were found, run non-linear refinment
-            if pose_status == 0
-                inlier_keypoints = valid_tracked_keypoints(inl_idx,:);
-                inlier_landmarks = valid_landmarks(inl_idx,:);
-
-                % Pose non-linear refinement
-                intrinsics = obj.getCameraIntrinsics();
-                ViewId = uint32(1); AbsolutePose = rigid3d(R_WC, T_WC);
-                pointTracks = repmat(pointTrack(1, [0,0]), length(inlier_keypoints),1);
-                for i=1:length(inlier_keypoints)
-                    pointTracks(i).ViewIds = ViewId;
-                    pointTracks(i).Points = inlier_keypoints(i,:);
-                end
-                cameraPoses = table(ViewId, AbsolutePose);
-                [refined_inlier_landmarks, refinedPoses] =  ...
-                    bundleAdjustment(inlier_landmarks, pointTracks,...
-                    cameraPoses, intrinsics);
-
-                % Update pose and landmarks location
-                R_WC = refinedPoses.AbsolutePose.Rotation;
-                T_WC = refinedPoses.AbsolutePose.Translation;
-                valid_landmarks(inl_idx, :) = refined_inlier_landmarks;
-            elseif pose_status == 2
-                warning("Non-linear refinement skipped: not enough inliers!");
+            if pose_status == 2
+                warning("Not enough inliers!");
+                % FIXME: if this happens, we need more points! Should
+                % re-initialize the pipeline?
             end
+            
+            % If enough inliers were found, run non-linear refinment
+            inlier_keypoints = valid_tracked_keypoints(inl_idx,:);
+            inlier_landmarks = valid_landmarks(inl_idx,:);
+
+            % Pose non-linear refinement
+            intrinsics = obj.getCameraIntrinsics();
+            ViewId = uint32(1); AbsolutePose = rigid3d(R_WC, T_WC);
+            pointTracks = repmat(pointTrack(1, [0,0]), length(inlier_keypoints),1);
+            for i=1:length(inlier_keypoints)
+                pointTracks(i).ViewIds = ViewId;
+                pointTracks(i).Points = inlier_keypoints(i,:);
+            end
+            cameraPoses = table(ViewId, AbsolutePose);
+            [refined_inlier_landmarks, refinedPoses] =  ...
+                bundleAdjustment(inlier_landmarks, pointTracks,...
+                cameraPoses, intrinsics);
+
+            % Update pose and landmarks location
+            R_WC = refinedPoses.AbsolutePose.Rotation;
+            T_WC = refinedPoses.AbsolutePose.Translation;
+            valid_landmarks(inl_idx, :) = refined_inlier_landmarks;
             
             % Update the current pose
             curr_pose = [R_WC;T_WC];
@@ -319,9 +321,9 @@ classdef VisualOdometry
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MinQuality', obj.newCandidateMinQuality, ...
                 'FilterSize', obj.newCandidateFilterSize, ...
-                'MinDistance',obj.newCandidateMinDistance,...
+                'MinDistance', obj.newCandidateMinDistance, ...
                 'MaxNewKeypoints', obj.newCandidateMaxNewKeypoints);
-            
+
             fprintf('\t Curr state fast forwarded candidates: %d\n', size(curr_state.candidate_keypoints,1));
             
             % Appending candidates to keypoints to track
