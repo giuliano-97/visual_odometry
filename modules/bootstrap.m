@@ -19,6 +19,8 @@ function [keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, camera
         optionalArgs.MinQuality double = 0.01 % Min. quality of detected Harris features 
         optionalArgs.FilterSize double = 5 % Filter size for Harris feature detection
         optionalArgs.uniformFeaturesPercentage double = 80 % Number of uniform features picked
+        optionalArgs.penaltyFactor double = 0.5;
+        optionalArgs.uniformityScoreSigma double = 40;
     end
     
 %% Extract bootstrap set of keypoints and landmarks
@@ -55,7 +57,7 @@ if strcmp(optionalArgs.FeatureMatchingMode, 'HardMatching')
     matched_points1 = valid_points1(idx_pairs(:,2));
 else
     klt_tracker = KLTTracker();
-    [points, validity, ~] = klt_tracker.track(img0, img1, points_0.Location);
+    [points, validity, tracking_scores] = klt_tracker.track(img0, img1, points_0.Location);
     matched_points0 = points_0(validity);
     matched_points1 = cornerPoints(points(validity, :));
 end
@@ -88,6 +90,7 @@ while ~ok
     % Set the final set of ouput keypoints for the first view
     matched_points0 = matched_points0(inliers_idx);
     matched_points1 = matched_points1(inliers_idx);
+    tracking_scores = tracking_scores(inliers_idx);
 
    % Extract relative camera pose of the second view
     [R1, t1, validPointsFraction] = relativeCameraPose(E, cameraParams,...
@@ -133,6 +136,20 @@ pose = [R1; t1];
 landmarks = landmarks(validIndex, :);
 keypoints = double(matched_points1(validIndex).Location);
 reproError = reproError(validIndex, :);
+tracking_scores = tracking_scores(validIndex);
+
+% Selecting keypoints depending on uniformity-trackability score
+if size(landmarks,1) > optionalArgs.MinNumLandmarks
+    uniformity_scores = uniformityScores(keypoints,...
+        'Sigma', optionalArgs.uniformityScoreSigma);
+    penalty = (1-optionalArgs.penaltyFactor)*(1-uniformity_scores) +...
+        (optionalArgs.penaltyFactor)*tracking_scores;
+    [~, sort_indcs] = sort(penalty,'descend');
+    landmarks = landmarks(sort_indcs(1:optionalArgs.MinNumLandmarks),:);
+    keypoints = keypoints(sort_indcs(1:optionalArgs.MinNumLandmarks),:);
+    reproError = reproError(sort_indcs(1:optionalArgs.MinNumLandmarks),:);
+end
+
 
 %% (Optionally) Visualize the 3-D scene
 
