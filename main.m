@@ -1,7 +1,9 @@
+%% Setup environment
 close all; clear;
 run("setup_env.m");
+rng(1023);
 
-%% Fetch dataloader
+%% Load data and metadata
 ds = 2; % 0: KITTI, 1: Malaga, 2: parking
 if ds == 0
     data_loader = dataLoaderKitti('./data/kitti');
@@ -62,7 +64,7 @@ data_loader.reset(bootstrap_frames(2)+1);
 
 % Iterate over all the frames
 num_frames = data_loader.last_frame - data_loader.index + 1;
-for i = data_loader.index : data_loader.index+num_frames-1
+for i = data_loader.index : data_loader.last_frame
     % Process the next frame
     curr_img = data_loader.next();
     if ndims(curr_img) == 3
