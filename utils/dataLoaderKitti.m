@@ -35,7 +35,7 @@ classdef dataLoaderKitti < handle
         vo_NewCandidateMinQuality double =          0.001
         vo_NewCandidateFilterSize double =          5
         vo_NewCandidateMinDistance double =         18
-        vo_NewCandidateCandidatesToKeep double =    50
+        vo_NewCandidateMaxNewKeypoints double =    50
         
     end
     

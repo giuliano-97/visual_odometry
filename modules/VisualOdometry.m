@@ -2,29 +2,36 @@ classdef VisualOdometry
     %VISUALODOMETRY Implementation of a simple VO pipeline
     
     properties
-        % Constant params
+        % General camera parameters of rectified image
         cameraParams
         imageSize
+        
+        % New landmarks params
         angularThreshold
         maxTemporalRecall
         maxNumLandmarks
-        ransacConfidence
-        ransacInlierThreshold
         maxReprojectionError
+        
+        % Pose estimation RANSAC params
+        ransacMaxNumTrials
+        ransacConfidence
+        ransacMAxReprojectionError
+        
+        % New keypoints params
         minNewKeypointsDistance
         maxNewKeypointsPerFrame
-        tracker
-        penaltyFactor
-        uniformityScoreSigma
-        
-        RANSACMaxNumTrials
-        RANSACConfidence
-        RANSACMAxReprojectionError
-        
         newCandidateMinQuality
         newCandidateFilterSize
         newCandidateMinDistance
-        newCandidateCandidatesToKeep
+        newCandidateMaxNewKeypoints
+
+        % Landmark replacement
+        penaltyFactor
+        uniformityScoreSigma
+        
+        % KLT tracker
+        tracker
+         
     end
      
     methods        
@@ -34,7 +41,7 @@ classdef VisualOdometry
             arguments
                 cameraParams
                 imageSize
-
+                
                 optionalArgs.maxTemporalRecall
                 optionalArgs.maxNumLandmarks
                 optionalArgs.maxReprojectionError
@@ -50,12 +57,12 @@ classdef VisualOdometry
                 
                 optionalArgs.RANSACMaxNumTrials
                 optionalArgs.RANSACConfidence
-                optionalArgs.RANSACMAxReprojectionError
+                optionalArgs.RANSACMaxReprojectionError
                 
                 optionalArgs.NewCandidateMinQuality
                 optionalArgs.NewCandidateFilterSize
                 optionalArgs.NewCandidateMinDistance
-                optionalArgs.NewCandidateCandidatesToKeep
+                optionalArgs.NewCandidateMaxNewKeypoints
                  
             end
             obj.cameraParams = cameraParams;
@@ -74,14 +81,14 @@ classdef VisualOdometry
                 'BlockSize', optionalArgs.KLTblockSize,...
                 'MaxIterations', optionalArgs.KLTmaxIterations);
             
-            obj.RANSACMaxNumTrials = optionalArgs.RANSACMaxNumTrials;
-            obj.RANSACConfidence = optionalArgs.RANSACConfidence;
-            obj.RANSACMAxReprojectionError = optionalArgs.RANSACMAxReprojectionError;
+            obj.ransacMaxNumTrials = optionalArgs.RANSACMaxNumTrials;
+            obj.ransacConfidence = optionalArgs.RANSACConfidence;
+            obj.ransacMAxReprojectionError = optionalArgs.RANSACMaxReprojectionError;
                 
             obj.newCandidateMinQuality = optionalArgs.NewCandidateMinQuality;
             obj.newCandidateFilterSize = optionalArgs.NewCandidateFilterSize;
             obj.newCandidateMinDistance = optionalArgs.NewCandidateMinDistance;
-            obj.newCandidateCandidatesToKeep = optionalArgs.NewCandidateCandidatesToKeep;
+            obj.newCandidateMaxNewKeypoints = optionalArgs.NewCandidateMaxNewKeypoints;
             
         end
         
@@ -250,9 +257,9 @@ classdef VisualOdometry
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
                 double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
-                'MaxNumTrials',         obj.RANSACMaxNumTrials,...
-                'Confidence',           obj.RANSACConfidence, ...
-                'MaxReprojectionError', obj.RANSACMAxReprojectionError);
+                'MaxNumTrials',         obj.ransacMaxNumTrials,...
+                'Confidence',           obj.ransacConfidence, ...
+                'MaxReprojectionError', obj.ransacMAxReprojectionError);
             
             % If enough inliers were found, run non-linear refinment
             if pose_status == 0
@@ -313,7 +320,7 @@ classdef VisualOdometry
                 'MinQuality', obj.newCandidateMinQuality, ...
                 'FilterSize', obj.newCandidateFilterSize, ...
                 'MinDistance',obj.newCandidateMinDistance,...
-                'CandidatesToKeep', obj.newCandidateCandidatesToKeep);
+                'MaxNewKeypoints', obj.newCandidateMaxNewKeypoints);
             
             fprintf('\t Curr state fast forwarded candidates: %d\n', size(curr_state.candidate_keypoints,1));
             
