@@ -35,7 +35,7 @@ if test_bootstrap
         img1 = rgb2gray(img1);
     end
     
-    [keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, cameraParams, ...
+    [keypoints, landmarks, reproError, pose_bootstrap] = bootstrap(img0, img1, cameraParams, ...
         'MinNumLandmarks', data_loader.bootstrap_MinNumLandmarks,...
         'MaxDepth', data_loader.bootstrap_MaxDepth, ...
         'FeatureMatchingMode', data_loader.bootstrap_FeatureMatchingMode, ...
@@ -88,12 +88,13 @@ state = initializeState(landmarks, keypoints, reproError);
 pose = [eye(3); zeros(1,3)];
 poses = zeros(4,3,10);
 poses(:,:,1) = pose;
+poses(:,:,2) = pose_bootstrap;
 
 
 %% Test continuous operation
 % Initialize VO visualizer
 vov = VOVisualizer;
-vov.update(prev_img, keypoints, [], landmarks, pose);
+vov.update(prev_img, keypoints, [], landmarks, pose_bootstrap);
 pause(2.5);
 
 
@@ -114,6 +115,6 @@ for i = data_loader.index : data_loader.index+num_frames-1
     vov.update(curr_img, state.keypoints, state.candidate_keypoints, ...
         state.landmarks, pose);
 
-    poses(:,:,i+1) = pose;
+    poses(:,:,i+1-bootstrap_frames(2)) = pose;
     prev_img = curr_img;
 end
