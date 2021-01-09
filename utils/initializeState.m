@@ -1,4 +1,4 @@
-function state = initializeState(landmarks, keypoints, reproError, pose, time_indx)
+function state = initializeState(landmarks, keypoints, reproError)
 %INITIALIZESTATE Initializes state for Visual Odometry
 %   @param landmarks matrix [Nx3]
 %   @param keypoints matrix [NX2]

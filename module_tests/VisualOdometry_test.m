@@ -65,7 +65,7 @@ vo = VisualOdometry(cameraParams, [H,W],...
     'MaxReprojectionError', 4);
 
 % Initialize the state struct
-state = initializeState(landmarks, keypoints, reproError, pose, 1);
+state = initializeState(landmarks, keypoints, reproError);
 
 % Initialize camera poses array
 pose = [eye(3); zeros(1,3)];

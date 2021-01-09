@@ -1,69 +1,80 @@
-% Datasets paths
-kitti_path = 'data/kitti';
-parking_path = 'data/parking';
-malaga_path = 'data/malaga';
+close all; clear;
+run("setup_env.m");
 
-%% Setup
+%% Fetch dataloader
 ds = 2; % 0: KITTI, 1: Malaga, 2: parking
-[cameraParams, ground_truth, last_frame] = loadGeneralData(ds);
-
-%% Bootstrap
-% Need to set bootstrap_frames
-% FIXME: bootstrap frames choice should depend on the dataset
-bootstrap_frames = [1,2];
 if ds == 0
-    img0 = imread([kitti_path '/00/image_0/' ...
-        sprintf('%06d.png',bootstrap_frames(1))]);
-    img1 = imread([kitti_path '/00/image_0/' ...
-        sprintf('%06d.png',bootstrap_frames(2))]);
+    data_loader = dataLoaderKitti('./data/kitti');
 elseif ds == 1
-    img0 = rgb2gray(imread([malaga_path ...
-        '/malaga-urban-dataset-extract-07_rectified_800x600_Images/' ...
-        left_images(bootstrap_frames(1)).name]));
-    img1 = rgb2gray(imread([malaga_path ...
-        '/malaga-urban-dataset-extract-07_rectified_800x600_Images/' ...
-        left_images(bootstrap_frames(2)).name]));
+    data_loader = dataLoaderMalaga('./data/malaga-urban-dataset-extract-07');
 elseif ds == 2
-    img0 = rgb2gray(imread([parking_path ...
-        sprintf('/images/img_%05d.png',bootstrap_frames(1))]));
-    img1 = rgb2gray(imread([parking_path ...
-        sprintf('/images/img_%05d.png',bootstrap_frames(2))]));
+    data_loader = dataLoaderParking('./data/parking');
 else
-    assert(false);
+    assert(false, "Invalid dataset type choose: 0, 1, 2");
 end
 
-% Bootstrap initial set of keypoints and landmarks
-[keypoints, landmarks] = bootstrap(img0, img1, cameraParams);
 
-% Define markovian state
-state.landmarks = landmarks;
-state.keypoints = keypoints;
-state.candidate_keypoints = [];
-state.candidate_first_keypoints = [];
-state.candidate_first_poses = [];
-state.candidate_time_indxs = [];
+%% Bootstrap
+% Load bootstrap images
+bootstrap_frames = [21,22];
+img0 = data_loader.retrieveFrame(bootstrap_frames(1));
+img1 = data_loader.retrieveFrame(bootstrap_frames(2));
+
+if ndims(img0) == 3
+    img0 = rgb2gray(img0);
+    img1 = rgb2gray(img1);
+end
+
+% Bootstrap keypoints and landmarks
+cameraParams = data_loader.camParams;
+[keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, ...
+    cameraParams, ...
+    'MinNumLandmarks', 200,...
+    'MaxDepth', 200, ...
+    'FeatureMatchingMode', 'KLT', ...
+    'FilterSize', 7, 'MinQuality', 0.001);
+
+% Initialize the vo pipeline
+prev_img = img1;
+[H,W] = size(prev_img);
+vo = VisualOdometry(cameraParams, [H,W],...
+    'MaxTemporalRecall', 15, ...
+    'MaxNumLandmarks', 200, ...
+    'MaxReprojectionError', 4);
+
+% Initialize the state struct
+state = initializeState(landmarks, keypoints, reproError);
+
+% Initialize VO visualizer
+vov = VOVisualizer;
+vov.update(prev_img, keypoints, [], landmarks, pose);
+pause(2.0);
 
 %% Continuous operation
-range = (bootstrap_frames(2)+1):last_frame;
-prev_img = img1;
-for i = range
-    fprintf('\n\nProcessing frame %d\n=====================\n', i);
-    if ds == 0
-        image = imread([kitti_path '/00/image_0/' sprintf('%06d.png',i)]);
-    elseif ds == 1
-        image = rgb2gray(imread([malaga_path ...
-            '/malaga-urban-dataset-extract-07_rectified_800x600_Images/' ...
-            left_images(i).name]));
-    elseif ds == 2
-        image = im2uint8(rgb2gray(imread([parking_path ...
-            sprintf('/images/img_%05d.png',i)])));
-    else
-        assert(false);
+
+% Initialize empty array of camera pose matrices
+pose = [eye(3); zeros(1,3)];
+poses = zeros(4,3,10);
+poses(:,:,1) = pose;
+
+% Reset data loader
+data_loader.reset(bootstrap_frames(2)+1);
+
+% Iterate over all the frames
+num_frames = data_loader.last_frame - data_loader.index + 1;
+for i = data_loader.index : data_loader.index+num_frames-1
+    % Process the next frame
+    curr_img = data_loader.next();
+    if ndims(curr_img) == 3
+        curr_img = rgb2gray(curr_img);
     end
-    % Makes sure that plots refresh.    
-    pause(0.01);
+    [state, pose] = ...
+        vo.processFrame(prev_img, curr_img, state);
     
-    % Update
-    [state, pose] = processFrame(state, prev_img, image);
-    prev_img = image;
+    % Refresh the plots
+    vov.update(curr_img, state.keypoints, state.candidate_keypoints, ...
+        state.landmarks, pose);
+
+    poses(:,:,i+1) = pose;
+    prev_img = curr_img;    
 end
