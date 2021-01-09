@@ -8,6 +8,8 @@ classdef VisualOdometry
         angularThreshold
         maxTemporalRecall
         maxNumLandmarks
+        ransacConfidence
+        ransacInlierThreshold
         maxReprojectionError
         minNewKeypointsDistance
         maxNewKeypointsPerFrame
@@ -26,6 +28,8 @@ classdef VisualOdometry
                 optionalArgs.angularThreshold double = 1.5
                 optionalArgs.maxTemporalRecall int8 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
+                optionalArgs.ransacConfidence double = 99
+                optionalArgs.ransacInlierThreshold double = 3
                 optionalArgs.maxReprojectionError double = 2
                 optionalArgs.minNewKeypointsDistance double = 18
                 optionalArgs.maxNewKeypointsPerFrame int32 = 50
@@ -37,6 +41,8 @@ classdef VisualOdometry
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
             obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
+            obj.ransacConfidence = optionalArgs.ransacConfidence;
+            obj.ransacInlierThreshold = optionalArgs.ransacInlierThreshold;
             obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker(...
                 'NumPyramidLevels', 7,...
@@ -190,141 +196,15 @@ classdef VisualOdometry
             curr_state.candidate_time_indxs = candidate_time_indxs;            
         end
             
-        function [curr_state, tracked_keypoints] = candidateTriangulationV2(...
-                obj, prev_img, prev_state, curr_img, curr_state, curr_pose,...
-                curr_tracked_scores)
-            arguments
-                obj
-                prev_img
-                prev_state
-                curr_img
-                curr_state
-                curr_pose
-                curr_tracked_scores
-            end
-
-            % Fetch current landmarks and keypoints
-            landmarks = curr_state.landmarks;
-            keypoints = curr_state.keypoints;
-            tracking_scores = curr_tracked_scores;
-            
-            % Fast-forward candidates by tracking from previous frame
-            [candidates_tracked, val_cand, candidate_scores] = obj.tracker.track(prev_img,...
-                curr_img,...
-                prev_state.candidate_keypoints);
-            tracked_keypoints = candidates_tracked(val_cand,:);
-            
-            % Build camera intrinsics
-            intrinsics = obj.getCameraIntrinsics();
-            
-            % Create new empty viewset
-            vSet = imageviewset;
-            
-            % Add the last view
-            last_view_id = uint32(obj.maxTemporalRecall + 1);
-            vSet = addView(vSet, last_view_id, ...
-                rigid3d(curr_pose(1:3, 1:3), curr_pose(4,:)), ...
-                'Points', candidates_tracked);
-            
-            % Initialize a cell array to store the assignment of keypoints
-            % to each of the previous N views
-            bins = cell(obj.maxTemporalRecall, 2);
-            % Iterate over and bin all the valid keypoints
-            for i=find(val_cand.')
-                % Compute the view id of this keypoint
-                view_id = prev_state.candidate_time_indxs(i) + last_view_id;
-                % If there are no points already assigned add pose
-                if isempty(bins{view_id,1})
-                    bins{view_id,2} = prev_state.candidate_first_poses{i};
-                end
-                % Bin the keypoint
-                bins{view_id,1} = [bins{view_id,1}, i];
-            end
-            
-            candidate_keypoints = double.empty(0,2);
-            candidate_first_keypoints = double.empty(0,2);
-            candidate_first_poses = [{}];
-            candidate_time_indxs = [];
-            
-            % Loop over non-empty bins and add views and connections
-            for i=1:uint32(obj.maxTemporalRecall)
-                if ~isempty(bins{i,1})
-                    % Get all the candidate keypoints
-                    kps_idxs = bins{i,1};
-                    kps = prev_state.candidate_first_keypoints(kps_idxs,:);
-                    % Add view
-                    pose = bins{i,2};
-                    vSet = addView(vSet, i, ...
-                        rigid3d(pose(1:3, 1:3), pose(4,:)), ...
-                        'Points', kps);
-                    % Add connection to the last view
-                    idx_pairs = [1:numel(kps_idxs); kps_idxs]';
-                    vSet = addConnection(vSet, i, last_view_id, ...
-                        'Matches', idx_pairs);
-                    % Find tracks and poses for this and the last view
-                    view_ids = [i, last_view_id];
-                    tracks = findTracks(vSet, view_ids);
-                    cameraPoses = poses(vSet, view_ids);
-                    % Triangulate
-                    [cand_landmarks, repro_errs, is_valid] = triangulateMultiview(tracks, ...
-                        cameraPoses, intrinsics);
-                    is_valid = is_valid & ...
-                        repro_errs < obj.maxReprojectionError;% & ...
-%                         cand_landmarks(:,3) > 0;
-                    % Validate the landmarks
-                    for j=find(is_valid.')
-                        
-                        idx = kps_idxs(j);
-                        cand_landmark = cand_landmarks(j,:);
-                        angle = calculateAngleDeg(cand_landmark, pose, curr_pose);
-                        if angle > obj.angularThreshold
-                                landmarks = [landmarks; cand_landmark]; %#ok<*AGROW>
-                                keypoints = [keypoints; tracks(j).Points(end,:)];
-                                tracking_scores = [tracking_scores; candidate_scores(idx)];
-        %                         reproError = [reproError; repro_err];
-        %                         curr_tracked_scores = [curr_tracked_scores; candidate_scores(i)];
-                        % Discard candidate if it has been stored for too long
-                        elseif prev_state.candidate_time_indxs(idx) > -obj.maxTemporalRecall
-                            candidate_keypoints = [candidate_keypoints;...
-                                candidates_tracked(idx,:)];
-                            candidate_first_keypoints = [candidate_first_keypoints;...
-                                prev_state.candidate_first_keypoints(idx,:)];
-                            candidate_first_poses = [candidate_first_poses,...
-                                prev_state.candidate_first_poses{idx}];
-                            candidate_time_indxs = [candidate_time_indxs, ...
-                                prev_state.candidate_time_indxs(idx)-1];
-                        end
-                    end
-                end
-            end
-            
-            if size(landmarks,1) > obj.maxNumLandmarks
-                uniformity_scores = uniformityScores(keypoints,...
-                    'Sigma', obj.uniformityScoreSigma);
-                penalty = (1-obj.penaltyFactor)*(1-uniformity_scores) +...
-                    (obj.penaltyFactor)*tracking_scores;
-                [~, sort_indcs] = sort(penalty,'descend');
-                landmarks = landmarks(sort_indcs(1:obj.maxNumLandmarks),:);
-                keypoints = keypoints(sort_indcs(1:obj.maxNumLandmarks),:);
-            end
-            
-            curr_state.landmarks = landmarks;
-            curr_state.keypoints = keypoints;
-            curr_state.candidate_keypoints = candidate_keypoints;
-            curr_state.candidate_first_keypoints = candidate_first_keypoints;
-            curr_state.candidate_first_poses = candidate_first_poses;
-            curr_state.candidate_time_indxs = candidate_time_indxs;
-        end        
-        
         function [curr_state, curr_pose, pose_status] = processFrame(obj, prev_img, ...
                 curr_img, prev_state)
-            % PROCESSFRAME Summary of this method goes here
-            %   TODO: add detailed explanation
+            % PROCESSFRAME: estimates the camera pose and the state given the previous
+            % state and the current and previous images
             arguments
                 obj
-                prev_img
+                prev_img % The previous image
                 curr_img % The new image
-                prev_state
+                prev_state % The previous state
             end
             
             %% Estimate camera pose from 2D-3D point correspondences
@@ -342,8 +222,9 @@ classdef VisualOdometry
             [R_WC, T_WC, inl_idx, pose_status] = estimateWorldCameraPose(...
                 double(valid_tracked_keypoints), double(valid_landmarks),...
                 obj.cameraParams, ...
-                'MaxNumTrials', 4000, 'Confidence', 99, ...
-                'MaxReprojectionError', 3);
+                'MaxNumTrials', 4000, ...
+                'Confidence', obj.ransacConfidence, ...
+                'MaxReprojectionError', obj.ransacInlierThreshold);
             
             % If enough inliers were found, run non-linear refinment
             if pose_status == 0
