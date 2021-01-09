@@ -2,20 +2,27 @@ classdef VisualOdometry
     %VISUALODOMETRY Implementation of a simple VO pipeline
     
     properties
-        % Constant params
+        % Camera intrinsics
         cameraParams
         imageSize
+        % New landmarks params
         angularThreshold
         maxTemporalRecall
         maxNumLandmarks
+        maxReprojectionError
+        % Pose estimation RANSAC params
         ransacConfidence
         ransacInlierThreshold
-        maxReprojectionError
+        % New keypoints params
+        minNewKeypointsQuality
+        detectorFilterSize 
         minNewKeypointsDistance
         maxNewKeypointsPerFrame
-        tracker
+        % Landmarks filtering
         penaltyFactor
         uniformityScoreSigma
+        % KLT tracker
+        tracker
     end
      
     methods        
@@ -28,9 +35,11 @@ classdef VisualOdometry
                 optionalArgs.angularThreshold double = 1.5
                 optionalArgs.maxTemporalRecall int8 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
+                optionalArgs.maxReprojectionError double = 2
                 optionalArgs.ransacConfidence double = 99
                 optionalArgs.ransacInlierThreshold double = 3
-                optionalArgs.maxReprojectionError double = 2
+                optionalArgs.minNewKeypointsQuality double = 0.001
+                optionalArgs.detectorFilterSize int32 = 5
                 optionalArgs.minNewKeypointsDistance double = 18
                 optionalArgs.maxNewKeypointsPerFrame int32 = 50
                 optionalArgs.penaltyFactor double = 0.5
@@ -41,14 +50,18 @@ classdef VisualOdometry
             obj.angularThreshold = optionalArgs.angularThreshold;
             obj.maxTemporalRecall = optionalArgs.maxTemporalRecall;
             obj.maxNumLandmarks = optionalArgs.maxNumLandmarks;
+            obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.ransacConfidence = optionalArgs.ransacConfidence;
             obj.ransacInlierThreshold = optionalArgs.ransacInlierThreshold;
-            obj.maxReprojectionError = optionalArgs.maxReprojectionError;
             obj.tracker = KLTTracker(...
                 'NumPyramidLevels', 7,...
                 'MaxBidirectionalError', 2,...
                 'BlockSize', [51 51],...
                 'MaxIterations', 100);
+            obj.minNewKeypointsQuality = ...
+                optionalArgs.minNewKeypointsQuality;
+            obj.detectorFilterSize = ...
+                optionalArgs.detectorFilterSize;
             obj.minNewKeypointsDistance = ...
                 optionalArgs.minNewKeypointsDistance;
             obj.maxNewKeypointsPerFrame = ...
@@ -226,31 +239,33 @@ classdef VisualOdometry
                 'Confidence', obj.ransacConfidence, ...
                 'MaxReprojectionError', obj.ransacInlierThreshold);
             
-            % If enough inliers were found, run non-linear refinment
-            if pose_status == 0
-                inlier_keypoints = valid_tracked_keypoints(inl_idx,:);
-                inlier_landmarks = valid_landmarks(inl_idx,:);
-
-                % Pose non-linear refinement
-                intrinsics = obj.getCameraIntrinsics();
-                ViewId = uint32(1); AbsolutePose = rigid3d(R_WC, T_WC);
-                pointTracks = repmat(pointTrack(1, [0,0]), length(inlier_keypoints),1);
-                for i=1:length(inlier_keypoints)
-                    pointTracks(i).ViewIds = ViewId;
-                    pointTracks(i).Points = inlier_keypoints(i,:);
-                end
-                cameraPoses = table(ViewId, AbsolutePose);
-                [refined_inlier_landmarks, refinedPoses] =  ...
-                    bundleAdjustment(inlier_landmarks, pointTracks,...
-                    cameraPoses, intrinsics);
-
-                % Update pose and landmarks location
-                R_WC = refinedPoses.AbsolutePose.Rotation;
-                T_WC = refinedPoses.AbsolutePose.Translation;
-                valid_landmarks(inl_idx, :) = refined_inlier_landmarks;
-            elseif pose_status == 2
-                warning("Non-linear refinement skipped: not enough inliers!");
+            if pose_status == 2
+                warning("Not enough inliers!");
+                % FIXME: if this happens, we need more points! Should
+                % re-initialize the pipeline?
             end
+            
+            % If enough inliers were found, run non-linear refinment
+            inlier_keypoints = valid_tracked_keypoints(inl_idx,:);
+            inlier_landmarks = valid_landmarks(inl_idx,:);
+
+            % Pose non-linear refinement
+            intrinsics = obj.getCameraIntrinsics();
+            ViewId = uint32(1); AbsolutePose = rigid3d(R_WC, T_WC);
+            pointTracks = repmat(pointTrack(1, [0,0]), length(inlier_keypoints),1);
+            for i=1:length(inlier_keypoints)
+                pointTracks(i).ViewIds = ViewId;
+                pointTracks(i).Points = inlier_keypoints(i,:);
+            end
+            cameraPoses = table(ViewId, AbsolutePose);
+            [refined_inlier_landmarks, refinedPoses] =  ...
+                bundleAdjustment(inlier_landmarks, pointTracks,...
+                cameraPoses, intrinsics);
+
+            % Update pose and landmarks location
+            R_WC = refinedPoses.AbsolutePose.Rotation;
+            T_WC = refinedPoses.AbsolutePose.Translation;
+            valid_landmarks(inl_idx, :) = refined_inlier_landmarks;
             
             % Update the current pose
             curr_pose = [R_WC;T_WC];
@@ -282,8 +297,8 @@ classdef VisualOdometry
             % are being tracked is smaller than the allowed maximum
             new_candidate_keypoints = selectCandidateKeypoints(curr_img,...
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
-                'MinQuality', 0.001, ...
-                'FilterSize', 5, ...
+                'MinQuality', obj.minNewKeypointsQuality, ...
+                'FilterSize', obj.detectorFilterSize, ...
                 'MinDistance', obj.minNewKeypointsDistance, ...
                 'MaxNewKeypoints', obj.maxNewKeypointsPerFrame);
 
