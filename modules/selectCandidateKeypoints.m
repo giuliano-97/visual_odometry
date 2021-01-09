@@ -13,7 +13,7 @@ arguments
    optionalArgs.MinDistance double = 20 % The (optional) distance threshold
    optionalArgs.MinQuality double = 0.01 % Harris keypoints quality
    optionalArgs.FilterSize double = 3 % Harris detector filter size
-   optionalArgs.CandidatesToKeep double = 200 % Detected valid kps to keep
+   optionalArgs.MaxNewKeypoints double = 200 % Detected valid kps to keep
 end
 
 % Detect new keypoints
@@ -32,7 +32,7 @@ new_kps = new_kps(sum(L,2) == 0);
 
 % Cap the maximum number of keypoints - pick the required number uniformly
 % num_kps = ceil(optionalArgs.FractionToKeep * size(new_kps,1));
-new_kps = selectUniform(new_kps, optionalArgs.CandidatesToKeep, size(img));
+new_kps = selectUniform(new_kps, optionalArgs.MaxNewKeypoints, size(img));
 
 new_kps_loc = new_kps.Location;
 end

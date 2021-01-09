@@ -9,6 +9,8 @@ classdef VisualOdometry
         maxTemporalRecall
         maxNumLandmarks
         maxReprojectionError
+        minNewKeypointsDistance
+        maxNewKeypointsPerFrame
         tracker
         penaltyFactor
         uniformityScoreSigma
@@ -25,8 +27,10 @@ classdef VisualOdometry
                 optionalArgs.maxTemporalRecall int8 = 10
                 optionalArgs.maxNumLandmarks uint32 = 300
                 optionalArgs.maxReprojectionError double = 2
-                optionalArgs.penaltyFactor double = 0.5;
-                optionalArgs.uniformityScoreSigma double = 30;
+                optionalArgs.minNewKeypointsDistance double = 18
+                optionalArgs.maxNewKeypointsPerFrame int32 = 50
+                optionalArgs.penaltyFactor double = 0.5
+                optionalArgs.uniformityScoreSigma double = 30
             end
             obj.cameraParams = cameraParams;
             obj.imageSize = imageSize;
@@ -39,6 +43,10 @@ classdef VisualOdometry
                 'MaxBidirectionalError', 2,...
                 'BlockSize', [51 51],...
                 'MaxIterations', 100);
+            obj.minNewKeypointsDistance = ...
+                optionalArgs.minNewKeypointsDistance;
+            obj.maxNewKeypointsPerFrame = ...
+                optionalArgs.maxNewKeypointsPerFrame;
             obj.penaltyFactor = optionalArgs.penaltyFactor;
             obj.uniformityScoreSigma = optionalArgs.uniformityScoreSigma;
         end
@@ -395,8 +403,8 @@ classdef VisualOdometry
                 [curr_state.keypoints; curr_state.candidate_keypoints],...
                 'MinQuality', 0.001, ...
                 'FilterSize', 5, ...
-                'MinDistance',18,...
-                'CandidatesToKeep', 50);
+                'MinDistance', obj.minNewKeypointsDistance, ...
+                'MaxNewKeypoints', obj.maxNewKeypointsPerFrame);
 
             fprintf('\t Curr state fast forwarded candidates: %d\n', size(curr_state.candidate_keypoints,1));
             

@@ -4,7 +4,7 @@ run("setup_env.m");
 rng(1023);
 
 %% Load data and metadata
-ds = 2; % 0: KITTI, 1: Malaga, 2: parking
+ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 if ds == 0
     data_loader = dataLoaderKitti('./data/kitti');
 elseif ds == 1
@@ -40,9 +40,12 @@ cameraParams = data_loader.camParams;
 prev_img = img1;
 [H,W] = size(prev_img);
 vo = VisualOdometry(cameraParams, [H,W],...
+    'AngularThreshold', 1.0, ...
     'MaxTemporalRecall', 15, ...
-    'MaxNumLandmarks', 200, ...
-    'MaxReprojectionError', 4);
+    'MaxNumLandmarks', 300, ...
+    'MaxReprojectionError', 4,...
+    'MinNewKeypointsDistance', 18,...
+    'MaxNewKeypointsPerFrame', 50);
 
 % Initialize the state struct
 state = initializeState(landmarks, keypoints, reproError);
