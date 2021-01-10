@@ -11,7 +11,7 @@ classdef dataLoaderKitti < handle
         
         % Parameters tunned for dataset
         bootstrap_frames =                      [1,3]
-        bootstrap_MaxNumKeypoints =             2000
+        bootstrap_MaxNumKeypoints =             3000
         bootstrap_MinNumLandmarks =             200
         bootstrap_MaxDepth =                    200
         bootstrap_FeatureMatchingMode =         'KLT'
@@ -21,23 +21,23 @@ classdef dataLoaderKitti < handle
         vo_MaxTemporalRecall =                  15
         vo_MaxNumLandmarks =                    300
         vo_MaxReprojectionError =               4
-        vo_AngularThreshold =                   0.8
+        vo_AngularThreshold =                   1.0
         vo_PenaltyFactor =                      0.5
         vo_UniformityScoreSigma =               30
         
-        vo_KLTnumPyramidLevels =                8
+        vo_KLTnumPyramidLevels =                7
         vo_KLTmaxBidirectionalError double =    2
-        vo_KLTblockSize double =                [61 61]
+        vo_KLTblockSize double =                [51 51]
         vo_KLTmaxIterations double =            100
         
-        vo_RANSACMaxNumTrials double =          5000
+        vo_RANSACMaxNumTrials double =          4000
         vo_RANSACConfidence double =            99
-        vo_RANSACMAxReprojectionError double =  5
+        vo_RANSACMAxReprojectionError double =  4
         
         vo_NewCandidateMinQuality double =          0.001
         vo_NewCandidateFilterSize double =          5
-        vo_NewCandidateMinDistance double =         20
-        vo_NewCandidateMaxNewKeypoints double =    100
+        vo_NewCandidateMinDistance double =         15
+        vo_NewCandidateMaxNewKeypoints double =    125
         
     end
     

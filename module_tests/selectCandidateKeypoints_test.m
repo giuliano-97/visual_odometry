@@ -30,7 +30,7 @@ tracker = KLTTracker();
 % Select new non-overlapping keypoints
 new_points = selectCandidateKeypoints(img2, points_tracked(validity,:), ...
     'MinDistance', 5, 'MinQuality', 0.0005, 'MaxNewKeypoints', 100, ...,
-    'FilterSize', 5, 'FractionToKeep', 1.0);
+    'FilterSize', 5);
 
 %% Plot the results
 figure(1);
