@@ -12,7 +12,7 @@ This repository only contains source code. The main script expects the datasets 
 
 The code was tested with the following settings:
 
-1) - OS: Windows 10
-   - CPU: Intel i5 8th Gen
-   - RAM: 8Gb
-   - MATLAB version: 2020b
+ - OS: Windows 10 / Ubuntu 20.04
+- CPU: Intel i5 8th Gen
+- RAM: 8Gb
+- MATLAB version: 2020b
