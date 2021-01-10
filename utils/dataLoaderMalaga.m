@@ -14,17 +14,17 @@ classdef dataLoaderMalaga < handle
         bootstrap_MaxDepth =                    200
         bootstrap_FeatureMatchingMode =         'KLT'
         bootstrap_FilterSize =                  7
-        bootstrap_MinQuality =                  0.001
+        bootstrap_MinQuality =                  0.005
         
         vo_MaxTemporalRecall =                  15
         vo_MaxNumLandmarks =                    200
-        vo_MaxReprojectionError =               4
-        vo_AngularThreshold =                   1.5
-        vo_PenaltyFactor =                      0.5
-        vo_UniformityScoreSigma =               30
+        vo_MaxReprojectionError =               2
+        vo_AngularThreshold =                   1.0
+        vo_PenaltyFactor =                      0.4
+        vo_UniformityScoreSigma =               20
         
-        vo_KLTnumPyramidLevels =                7
-        vo_KLTmaxBidirectionalError double =    2
+        vo_KLTnumPyramidLevels =                6
+        vo_KLTmaxBidirectionalError double =    3
         vo_KLTblockSize double =                [51 51]
         vo_KLTmaxIterations double =            100
         
@@ -32,10 +32,10 @@ classdef dataLoaderMalaga < handle
         vo_RANSACConfidence double =            99
         vo_RANSACMAxReprojectionError double =  3
         
-        vo_NewCandidateMinQuality double =          0.001
-        vo_NewCandidateFilterSize double =          5
+        vo_NewCandidateMinQuality double =          0.004
+        vo_NewCandidateFilterSize double =          7
         vo_NewCandidateMinDistance double =         18
-        vo_NewCandidateMaxNewKeypoints double =    50
+        vo_NewCandidateMaxNewKeypoints double =    100
         
     end
     
