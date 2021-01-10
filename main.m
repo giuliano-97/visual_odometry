@@ -5,7 +5,7 @@ rng(1023);
 
 %% Load data and metadata
 ds = 2; % 0: KITTI, 1: Malaga, 2: parking
-if ds == 0
+if ds ==0
     data_loader = dataLoaderKitti('./data/kitti');
 elseif ds == 1
     data_loader = dataLoaderMalaga('./data/malaga-urban-dataset-extract-07');
