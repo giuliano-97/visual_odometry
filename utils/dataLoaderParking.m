@@ -10,6 +10,7 @@ classdef dataLoaderParking < handle
         finished
         
         % Parameters tunned for dataset
+        bootstrap_MaxNumKeypoints =             1000
         bootstrap_MinNumLandmarks =             200
         bootstrap_MaxDepth =                    200
         bootstrap_FeatureMatchingMode =         'KLT'

@@ -12,6 +12,7 @@ function [keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, camera
         optionalArgs.PlotResult logical = false
         optionalArgs.MinDepth double = 0    % Min depth of the triangulated landmarks
         optionalArgs.MaxDepth double = 5000 % Max depth of the triangulated landmarks
+        optionalArgs.MaxNumKeypoints uint32 = 2000
         optionalArgs.MinNumLandmarks uint32 = 50 % Min number of triangulated landmarks
         optionalArgs.FeatureMatchingMode string ...
             {mustBeMember(optionalArgs.FeatureMatchingMode,...
@@ -32,9 +33,8 @@ points_0 = detectMinEigenFeatures(img0,...
     'FilterSize', optionalArgs.FilterSize);
 
 % Select points uniformly distributed
-% FIXME: this is hard-coded - not good!
 points_0 = selectUniform(points_0,...
-    round(length(points_0)*optionalArgs.uniformFeaturesPercentage/100),...
+    optionalArgs.MaxNumKeypoints,...
     size(img0));
 
 if strcmp(optionalArgs.FeatureMatchingMode, 'HardMatching')
@@ -139,7 +139,7 @@ reproError = reproError(validIndex, :);
 if optionalArgs.PlotResult == true
 
     figure(1);
-    subplot(2,2,[1,2]);
+    subplot(2,2,1);
    
     % Plot landmarks in 3D
     plot3(landmarks(:,1), landmarks(:,2), landmarks(:,3),'*');
@@ -163,16 +163,26 @@ if optionalArgs.PlotResult == true
     ylabel('Y');
     zlabel('Z');
     
+    % Plot landmarks in 2D (top-view)
+    subplot(2,2,2);
+    plot(landmarks(:,1), landmarks(:,3), ...
+        'LineStyle', 'none', 'Marker', 'diamond', ...
+        'MarkerSize', 2, 'MarkerEdgeColor', 'black', ...
+        'MarkerFaceColor', 'black');
+    xlabel('X');
+    ylabel('Z');
+    axis equal;
+    grid on;
+    hold on;
+    plot([0, t1(1)], [0, t1(3)],...
+    '-s', 'LineWidth', 1, 'MarkerSize', 3,...
+    'MarkerEdgeColor', 'red', 'MarkerFaceColor',[1 .6 .6],...
+    'Marker', 'o');
+    
     % Display matched points
-    subplot(2,2,3)
-    imshow(insertMarker(img0, matched_points0(validIndex),...
-        '*', 'Color', 'red'));
-    title('Image 1')
-
-    subplot(2,2,4)
-    imshow(insertMarker(img1, matched_points1(validIndex),...
-        '*', 'Color', 'red'));
-    title('Image 2')
+    subplot(2,2,[3,4]);
+    showMatchedFeatures(img0, img1, matched_points0(validIndex).Location, ...
+        matched_points0(validIndex).Location, 'blend');
 
 end
 
