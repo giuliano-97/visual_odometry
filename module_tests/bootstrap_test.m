@@ -2,7 +2,7 @@ clear;
 close all;
 
 %% Load data and metadata
-ds = 1; % 0: KITTI, 1: Malaga, 2: parking
+ds = 2; % 0: KITTI, 1: Malaga, 2: parking
 if ds == 0
     data_loader = dataLoaderKitti('./data/kitti');
 elseif ds == 1

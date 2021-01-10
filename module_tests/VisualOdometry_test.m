@@ -56,7 +56,7 @@ else
 end
 
 % Number of frames to play VO for
-num_frames = data_loader.last_frame - data_loader.index + 1;
+num_frames = 35; %data_loader.last_frame - data_loader.index + 1;
 assert(num_frames <= data_loader.last_frame-data_loader.index+1,...
     'Not enough frames');
 
