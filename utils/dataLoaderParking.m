@@ -10,8 +10,8 @@ classdef dataLoaderParking < handle
         finished
         
         % Parameters tunned for dataset
-        bootstrap_frames =                      [21,22]
-        bootstrap_MaxNumKeypoints =             6000
+        bootstrap_frames =                      [1,3]
+        bootstrap_MaxNumKeypoints =             2000
         bootstrap_MinNumLandmarks =             200
         bootstrap_MaxDepth =                    200
         bootstrap_FeatureMatchingMode =         'KLT'
@@ -36,7 +36,7 @@ classdef dataLoaderParking < handle
         
         vo_NewCandidateMinQuality double =          0.001
         vo_NewCandidateFilterSize double =          5
-        vo_NewCandidateMinDistance double =         10
+        vo_NewCandidateMinDistance double =         18
         vo_NewCandidateMaxNewKeypoints double =    50
         
     end
