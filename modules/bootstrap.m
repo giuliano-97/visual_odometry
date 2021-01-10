@@ -25,9 +25,6 @@ function [keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, camera
 %% Extract bootstrap set of keypoints and landmarks
 
 % Detect Harris features in the first view
-% points_0 = detectHarrisFeatures(img0,...
-%     'MinQuality', optionalArgs.MinQuality,...
-%     'FilterSize', optionalArgs.FilterSize);
 points_0 = detectMinEigenFeatures(img0,...
     'MinQuality', optionalArgs.MinQuality,...
     'FilterSize', optionalArgs.FilterSize);
@@ -150,10 +147,7 @@ if optionalArgs.PlotResult == true
     absPose1 = rigid3d(R1, t1);
     % Plot the cameras
     plotCamera('AbsolutePose', absPose0, 'Size', 1);
-    text(0,0,0,'Cam 1','fontsize',10,'color','k','FontWeight','bold');
     plotCamera('AbsolutePose', absPose1, 'Size', 1);
-    text(absPose1.Translation(1), absPose1.Translation(2), absPose1.Translation(3), ...
-        'Cam 2','fontsize',10,'color','k','FontWeight','bold');
     
     set(gca,'CameraUpVector',[0 1 0]);
     axis equal

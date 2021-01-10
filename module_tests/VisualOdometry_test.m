@@ -26,7 +26,7 @@ cameraParams = data_loader.camParams;
 
 if test_bootstrap
     % Load bootstrap images
-    bootstrap_frames = [21,22];
+    bootstrap_frames = data_loader.bootstrap_frames;
     img0 = data_loader.retrieveFrame(bootstrap_frames(1));
     img1 = data_loader.retrieveFrame(bootstrap_frames(2));
     
@@ -36,6 +36,7 @@ if test_bootstrap
     end
     
     [keypoints, landmarks, reproError, pose_bootstrap] = bootstrap(img0, img1, cameraParams, ...
+        'MaxNumKeypoints', data_loader.bootstrap_MaxNumKeypoints, ...
         'MinNumLandmarks', data_loader.bootstrap_MinNumLandmarks,...
         'MaxDepth', data_loader.bootstrap_MaxDepth, ...
         'FeatureMatchingMode', data_loader.bootstrap_FeatureMatchingMode, ...

@@ -4,7 +4,7 @@ run("setup_env.m");
 rng(1023);
 
 %% Load data and metadata
-ds = 0; % 0: KITTI, 1: Malaga, 2: parking
+ds = 2; % 0: KITTI, 1: Malaga, 2: parking
 if ds == 0
     data_loader = dataLoaderKitti('./data/kitti');
 elseif ds == 1
@@ -18,7 +18,7 @@ end
 
 %% Bootstrap
 % Load bootstrap images
-bootstrap_frames = [21,22];
+bootstrap_frames = data_loader.bootstrap_frames;
 img0 = data_loader.retrieveFrame(bootstrap_frames(1));
 img1 = data_loader.retrieveFrame(bootstrap_frames(2));
 
@@ -31,10 +31,12 @@ end
 cameraParams = data_loader.camParams;
 [keypoints, landmarks, reproError, pose] = bootstrap(img0, img1, ...
     cameraParams, ...
-    'MinNumLandmarks', 200,...
-    'MaxDepth', 200, ...
-    'FeatureMatchingMode', 'KLT', ...
-    'FilterSize', 7, 'MinQuality', 0.001);
+    'MaxNumKeypoints', data_loader.bootstrap_MaxNumKeypoints, ...
+    'MinNumLandmarks', data_loader.bootstrap_MinNumLandmarks,...
+    'MaxDepth', data_loader.bootstrap_MaxDepth, ...
+    'FeatureMatchingMode', data_loader.bootstrap_FeatureMatchingMode, ...
+    'FilterSize', data_loader.bootstrap_FilterSize,...
+    'MinQuality', data_loader.bootstrap_MinQuality);
 
 % Initialize the vo pipeline
 prev_img = img1;
@@ -78,7 +80,6 @@ poses(:,:,1) = pose;
 data_loader.reset(bootstrap_frames(2)+1);
 
 % Iterate over all the frames
-num_frames = data_loader.last_frame - data_loader.index + 1;
 for i = data_loader.index : data_loader.last_frame
     % Process the next frame
     curr_img = data_loader.next();
